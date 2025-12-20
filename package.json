@@ -9,8 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.952.0",
-    "bullmq": "^5.66.0",
+    "@aws-sdk/client-ses": "^3.956.0",
+    "bullmq": "^5.66.2",
     "dotenv": "^17.2.3",
     "ioredis": "^5.8.2",
     "next": "16.0.10",
