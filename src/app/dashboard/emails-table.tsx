@@ -57,6 +57,8 @@ function StatusBadge({ status }: { status: string }) {
     processing: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400 animate-pulse' },
     completed: { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
     failed: { bg: 'bg-red-500/10', text: 'text-red-400', dot: 'bg-red-400' },
+    bounced: { bg: 'bg-orange-500/10', text: 'text-orange-400', dot: 'bg-orange-400' },
+    complained: { bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-400' },
   };
 
   const style = styles[status] || styles.pending;
