@@ -8,9 +8,19 @@ export const emailStatusEnum = pgEnum('email_status', [
   'failed'       // Permanent failure after retries
 ]);
 
+// Users table - stores user profiles synced with Supabase Auth
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey(), // Same as Supabase Auth user ID
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Emails table
 export const emails = pgTable('emails', {
   id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id), // Foreign key to users
   to: varchar('to', { length: 255 }).notNull(),
   subject: varchar('subject', { length: 500 }).notNull(),
   html: text('html'),
@@ -24,5 +34,7 @@ export const emails = pgTable('emails', {
 });
 
 // Type inference
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Email = typeof emails.$inferSelect;
 export type NewEmail = typeof emails.$inferInsert;

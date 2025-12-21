@@ -43,6 +43,7 @@ async function handler(req: NextRequest) {
         .set({ 
           status: 'completed', 
           sesMessageId: response.MessageId,
+          errorMessage: null,  // Clears any previous error from failed attempts
           updatedAt: new Date() 
         })
         .where(eq(emails.id, emailId));

@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.956.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.89.0",
     "@upstash/qstash": "^2.8.4",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
