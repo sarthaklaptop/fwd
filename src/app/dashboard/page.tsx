@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { emails, apiKeys } from '@/db/schema';
-import { eq, desc, count } from 'drizzle-orm';
+import { eq, desc, count, and, gte } from 'drizzle-orm';
 import LogoutButton from './logout-button';
 import ApiKeysSection from './api-keys-section';
 import EmailsTable from './emails-table';
@@ -15,8 +15,12 @@ export default async function DashboardPage() {
     redirect('/auth/login');
   }
 
+  // Get today's date at midnight for rate limit counting
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   // Fetch data in parallel
-  const [userEmails, userApiKeys, emailStats] = await Promise.all([
+  const [userEmails, userApiKeys, emailStats, todayStats] = await Promise.all([
     db.select().from(emails).where(eq(emails.userId, user.id)).orderBy(desc(emails.createdAt)).limit(50),
     db.select({
       id: apiKeys.id,
@@ -29,12 +33,17 @@ export default async function DashboardPage() {
     db.select({
       total: count(),
     }).from(emails).where(eq(emails.userId, user.id)),
+    db.select({
+      count: count(),
+    }).from(emails).where(and(eq(emails.userId, user.id), gte(emails.createdAt, today))),
   ]);
 
   const totalEmails = emailStats[0]?.total || 0;
   const sentEmails = userEmails.filter(e => e.status === 'completed').length;
   const failedEmails = userEmails.filter(e => e.status === 'failed').length;
   const activeKeys = userApiKeys.filter(k => !k.revokedAt).length;
+  const emailsToday = todayStats[0]?.count || 0;
+  const DAILY_LIMIT = 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
@@ -55,6 +64,33 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {/* Rate Limit Banner */}
+        <div className={`rounded-xl border p-4 ${
+          emailsToday >= DAILY_LIMIT 
+            ? 'bg-red-500/10 border-red-500/30' 
+            : emailsToday >= 80 
+              ? 'bg-yellow-500/10 border-yellow-500/30'
+              : 'bg-gray-800/50 border-gray-700/50'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm text-gray-400">Daily Usage</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-2xl font-bold text-white">{emailsToday}</span>
+                <span className="text-gray-400">/ {DAILY_LIMIT} emails</span>
+              </div>
+            </div>
+            <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all ${
+                  emailsToday >= DAILY_LIMIT ? 'bg-red-500' : emailsToday >= 80 ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min((emailsToday / DAILY_LIMIT) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatsCard title="Total Emails" value={totalEmails} icon="mail" color="blue" />

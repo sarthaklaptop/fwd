@@ -3,7 +3,7 @@ import { qstash } from "@/lib/qstash";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { db } from "@/db";
 import { emails, apiKeys, suppressionList } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, gte, count } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
 
 const ses = new SESClient({
@@ -13,6 +13,8 @@ const ses = new SESClient({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
+
+const DAILY_LIMIT = 100;
 
 export async function POST(req: Request) {
   try {
@@ -36,6 +38,34 @@ export async function POST(req: Request) {
 
     if (!keyRecord) {
       return NextResponse.json({ error: "Invalid or revoked API key" }, { status: 401 });
+    }
+
+    // Rate limiting: 100 emails/day per user
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [emailCount] = await db
+      .select({ count: count() })
+      .from(emails)
+      .where(and(
+        eq(emails.userId, keyRecord.userId),
+        gte(emails.createdAt, today)
+      ));
+    
+    const emailsSentToday = emailCount?.count || 0;
+    const remaining = DAILY_LIMIT - emailsSentToday;
+
+    if (emailsSentToday >= DAILY_LIMIT) {
+      return NextResponse.json(
+        { error: "Daily limit reached (100 emails/day). Resets at midnight UTC." },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(DAILY_LIMIT),
+            'X-RateLimit-Remaining': '0',
+          }
+        }
+      );
     }
 
     // Check suppression list
@@ -99,6 +129,12 @@ export async function POST(req: Request) {
         emailId: emailRecord.id,
         messageId: response.MessageId,
         status: "sent",
+        rateLimit: { limit: DAILY_LIMIT, remaining: remaining - 1 },
+      }, {
+        headers: {
+          'X-RateLimit-Limit': String(DAILY_LIMIT),
+          'X-RateLimit-Remaining': String(remaining - 1),
+        }
       });
     }
 
@@ -125,6 +161,12 @@ export async function POST(req: Request) {
       emailId: emailRecord.id,
       messageId: response.messageId,
       status: "queued",
+      rateLimit: { limit: DAILY_LIMIT, remaining: remaining - 1 },
+    }, {
+      headers: {
+        'X-RateLimit-Limit': String(DAILY_LIMIT),
+        'X-RateLimit-Remaining': String(remaining - 1),
+      }
     });
   } catch (error: any) {
     console.error("Email error:", error);
