@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { emails } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { emails, apiKeys } from '@/db/schema';
+import { eq, desc, isNull } from 'drizzle-orm';
 import LogoutButton from './logout-button';
+import ApiKeysSection from './api-keys-section';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,7 +14,7 @@ export default async function DashboardPage() {
     redirect('/auth/login');
   }
 
-  // Fetch user's emails from database
+  // Fetch user's emails
   const userEmails = await db
     .select()
     .from(emails)
@@ -21,9 +22,22 @@ export default async function DashboardPage() {
     .orderBy(desc(emails.createdAt))
     .limit(50);
 
+  // Fetch user's API keys
+  const userApiKeys = await db
+    .select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      lastUsedAt: apiKeys.lastUsedAt,
+      createdAt: apiKeys.createdAt,
+      revokedAt: apiKeys.revokedAt,
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.userId, user.id))
+    .orderBy(desc(apiKeys.createdAt));
+
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-white">FWD Dashboard</h1>
@@ -34,47 +48,49 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Email History</h2>
-          <p className="text-gray-400">Track all your sent emails and their status</p>
-        </div>
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {/* API Keys Section */}
+        <ApiKeysSection initialKeys={userApiKeys} />
 
-        {/* Email Table */}
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-700">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">To</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Subject</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {userEmails.length === 0 ? (
+        {/* Email History */}
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Email History</h2>
+          <p className="text-gray-400 mb-4">Track all your sent emails and their status</p>
+
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-700">
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                    No emails sent yet. Use the API to send your first email!
-                  </td>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">To</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Subject</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Date</th>
                 </tr>
-              ) : (
-                userEmails.map((email) => (
-                  <tr key={email.id} className="hover:bg-gray-700/50">
-                    <td className="px-6 py-4 text-sm text-white">{email.to}</td>
-                    <td className="px-6 py-4 text-sm text-gray-300">{email.subject}</td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={email.status} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      {new Date(email.createdAt).toLocaleString()}
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {userEmails.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                      No emails sent yet. Create an API key above and start sending!
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  userEmails.map((email) => (
+                    <tr key={email.id} className="hover:bg-gray-700/50">
+                      <td className="px-6 py-4 text-sm text-white">{email.to}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300">{email.subject}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={email.status} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">
+                        {new Date(email.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </div>

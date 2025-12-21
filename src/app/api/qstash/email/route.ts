@@ -70,7 +70,7 @@ async function handler(req: NextRequest) {
     }
 
     // Return 500 so QStash knows to retry
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Email delivery failed" }, { status: 500 });
   }
 }
 
