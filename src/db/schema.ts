@@ -5,7 +5,9 @@ export const emailStatusEnum = pgEnum('email_status', [
   'pending',
   'processing',
   'completed',
-  'failed'
+  'failed',
+  'bounced',
+  'complained'
 ]);
 
 // Users table
@@ -29,6 +31,16 @@ export const apiKeys = pgTable('api_keys', {
   revokedAt: timestamp('revoked_at'),
 });
 
+// Suppression list - emails that should not receive messages
+export const suppressionList = pgTable('suppression_list', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: varchar('email', { length: 255 }).notNull(),
+  reason: varchar('reason', { length: 50 }).notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  emailId: uuid('email_id').references(() => emails.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Emails table
 export const emails = pgTable('emails', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -41,6 +53,7 @@ export const emails = pgTable('emails', {
   messageId: varchar('message_id', { length: 255 }),
   sesMessageId: varchar('ses_message_id', { length: 255 }),
   errorMessage: text('error_message'),
+  bounceType: varchar('bounce_type', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -52,3 +65,6 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
 export type Email = typeof emails.$inferSelect;
 export type NewEmail = typeof emails.$inferInsert;
+export type SuppressionEntry = typeof suppressionList.$inferSelect;
+export type NewSuppressionEntry = typeof suppressionList.$inferInsert;
+

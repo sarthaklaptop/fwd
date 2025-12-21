@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { qstash } from "@/lib/qstash";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { db } from "@/db";
-import { emails, apiKeys } from "@/db/schema";
+import { emails, apiKeys, suppressionList } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
 
@@ -21,7 +21,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing API key. Include x-api-key header." }, { status: 401 });
     }
 
-    // Parse body early to validate before DB calls
     const body = await req.json();
     const { to, subject, html, text } = body;
 
@@ -39,7 +38,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid or revoked API key" }, { status: 401 });
     }
 
-    // Create email record with status 'processing' directly (skip pending)
+    // Check suppression list
+    const recipientEmail = (Array.isArray(to) ? to[0] : to).toLowerCase();
+    const suppressed = await db.query.suppressionList.findFirst({
+      where: eq(suppressionList.email, recipientEmail)
+    });
+
+    if (suppressed) {
+      return NextResponse.json({ 
+        error: `Email to ${recipientEmail} blocked: recipient is on suppression list (${suppressed.reason})` 
+      }, { status: 400 });
+    }
+
+    // Create email record
     const [emailRecord] = await db.insert(emails).values({
       userId: keyRecord.userId,
       to,
