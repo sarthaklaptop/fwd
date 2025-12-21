@@ -2,9 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { emails, apiKeys } from '@/db/schema';
-import { eq, desc, isNull } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 import LogoutButton from './logout-button';
 import ApiKeysSection from './api-keys-section';
+import EmailsTable from './emails-table';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -14,100 +15,117 @@ export default async function DashboardPage() {
     redirect('/auth/login');
   }
 
-  // Fetch user's emails
-  const userEmails = await db
-    .select()
-    .from(emails)
-    .where(eq(emails.userId, user.id))
-    .orderBy(desc(emails.createdAt))
-    .limit(50);
-
-  // Fetch user's API keys
-  const userApiKeys = await db
-    .select({
+  // Fetch data in parallel
+  const [userEmails, userApiKeys, emailStats] = await Promise.all([
+    db.select().from(emails).where(eq(emails.userId, user.id)).orderBy(desc(emails.createdAt)).limit(50),
+    db.select({
       id: apiKeys.id,
       name: apiKeys.name,
       keyPrefix: apiKeys.keyPrefix,
       lastUsedAt: apiKeys.lastUsedAt,
       createdAt: apiKeys.createdAt,
       revokedAt: apiKeys.revokedAt,
-    })
-    .from(apiKeys)
-    .where(eq(apiKeys.userId, user.id))
-    .orderBy(desc(apiKeys.createdAt));
+    }).from(apiKeys).where(eq(apiKeys.userId, user.id)).orderBy(desc(apiKeys.createdAt)),
+    db.select({
+      total: count(),
+    }).from(emails).where(eq(emails.userId, user.id)),
+  ]);
+
+  const totalEmails = emailStats[0]?.total || 0;
+  const sentEmails = userEmails.filter(e => e.status === 'completed').length;
+  const failedEmails = userEmails.filter(e => e.status === 'failed').length;
+  const activeKeys = userApiKeys.filter(k => !k.revokedAt).length;
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <header className="bg-gray-800 border-b border-gray-700">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+      {/* Header */}
+      <header className="bg-gray-900/50 backdrop-blur-lg border-b border-gray-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-white">FWD Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">F</span>
+            </div>
+            <h1 className="text-xl font-bold text-white">FWD</h1>
+          </div>
           <div className="flex items-center gap-4">
-            <span className="text-gray-400 text-sm">{user.email}</span>
+            <span className="text-gray-400 text-sm hidden sm:block">{user.email}</span>
             <LogoutButton />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* API Keys Section */}
-        <ApiKeysSection initialKeys={userApiKeys} />
-
-        {/* Email History */}
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Email History</h2>
-          <p className="text-gray-400 mb-4">Track all your sent emails and their status</p>
-
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">To</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Subject</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Status</th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-300 uppercase">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {userEmails.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                      No emails sent yet. Create an API key above and start sending!
-                    </td>
-                  </tr>
-                ) : (
-                  userEmails.map((email) => (
-                    <tr key={email.id} className="hover:bg-gray-700/50">
-                      <td className="px-6 py-4 text-sm text-white">{email.to}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300">{email.subject}</td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={email.status} />
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-400">
-                        {new Date(email.createdAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatsCard title="Total Emails" value={totalEmails} icon="mail" color="blue" />
+          <StatsCard title="Delivered" value={sentEmails} icon="check" color="green" />
+          <StatsCard title="Failed" value={failedEmails} icon="x" color="red" />
+          <StatsCard title="Active Keys" value={activeKeys} icon="key" color="purple" />
         </div>
+
+        {/* API Keys Section */}
+        <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+          <ApiKeysSection initialKeys={userApiKeys} />
+        </section>
+
+        {/* Emails Table */}
+        <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+          <h2 className="text-xl font-bold text-white mb-1">Recent Emails</h2>
+          <p className="text-gray-400 text-sm mb-4">Last 50 emails sent through your API</p>
+          <EmailsTable emails={userEmails} />
+        </section>
       </main>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    pending: 'bg-yellow-500/20 text-yellow-300',
-    processing: 'bg-blue-500/20 text-blue-300',
-    completed: 'bg-green-500/20 text-green-300',
-    failed: 'bg-red-500/20 text-red-300',
+function StatsCard({ title, value, icon, color }: { title: string; value: number; icon: string; color: string }) {
+  const colors: Record<string, { bg: string; iconBg: string; iconColor: string }> = {
+    blue: { bg: 'from-blue-500/20 to-blue-600/10 border-blue-500/30', iconBg: 'bg-blue-500/20', iconColor: 'text-blue-400' },
+    green: { bg: 'from-green-500/20 to-green-600/10 border-green-500/30', iconBg: 'bg-green-500/20', iconColor: 'text-green-400' },
+    red: { bg: 'from-red-500/20 to-red-600/10 border-red-500/30', iconBg: 'bg-red-500/20', iconColor: 'text-red-400' },
+    purple: { bg: 'from-purple-500/20 to-purple-600/10 border-purple-500/30', iconBg: 'bg-purple-500/20', iconColor: 'text-purple-400' },
   };
 
+  const style = colors[color];
+
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-500/20 text-gray-300'}`}>
-      {status}
-    </span>
+    <div className={`bg-gradient-to-br ${style.bg} border rounded-xl p-4`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-gray-400 text-sm font-medium">{title}</span>
+        <div className={`w-8 h-8 ${style.iconBg} rounded-lg flex items-center justify-center`}>
+          <Icon name={icon} className={`w-4 h-4 ${style.iconColor}`} />
+        </div>
+      </div>
+      <p className="text-3xl font-bold text-white">{value}</p>
+    </div>
   );
 }
+
+function Icon({ name, className }: { name: string; className?: string }) {
+  const icons: Record<string, JSX.Element> = {
+    mail: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    ),
+    check: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    x: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    key: (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+      </svg>
+    ),
+  };
+
+  return icons[name] || null;
+}
+
