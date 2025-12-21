@@ -75,6 +75,7 @@ export async function POST(req: Request) {
             Text: text ? { Data: text } : undefined,
           },
         },
+        ConfigurationSetName: "fwd-notifications",
       });
       const response = await ses.send(command);
       console.log(`✅ [DEV MODE] Email sent! SES ID: ${response.MessageId}`);

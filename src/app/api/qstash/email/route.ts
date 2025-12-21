@@ -21,7 +21,7 @@ async function handler(req: NextRequest) {
   console.log(`📧 Processing email ${emailId} to: ${to}`);
 
   try {
-    // Send via AWS SES
+    // Send via AWS SES with configuration set for bounce/complaint tracking
     const command = new SendEmailCommand({
       Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
       Destination: { ToAddresses: Array.isArray(to) ? to : [to] },
@@ -32,6 +32,7 @@ async function handler(req: NextRequest) {
           Text: text ? { Data: text } : undefined,
         },
       },
+      ConfigurationSetName: "fwd-notifications",
     });
 
     const response = await ses.send(command);
