@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { qstash } from "@/lib/qstash";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { db } from "@/db";
-import { emails, apiKeys, suppressionList } from "@/db/schema";
+import { emails, apiKeys, suppressionList, templates } from "@/db/schema";
 import { eq, and, isNull, gte, count } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
 import { injectOpenTracking } from "@/lib/tracking";
+import { substituteVariables } from "@/lib/templates";
 
 const ses = new SESClient({
   region: process.env.AWS_REGION,
@@ -25,13 +26,9 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { to, subject, html, text } = body;
+    let { to, subject, html, text, templateId, variables } = body;
 
-    if (!to || !subject || (!html && !text)) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-    }
-
-    // Validate API key
+    // Validate API key first
     const keyHash = hashApiKey(apiKey);
     const keyRecord = await db.query.apiKeys.findFirst({
       where: and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt))
@@ -39,6 +36,27 @@ export async function POST(req: Request) {
 
     if (!keyRecord) {
       return NextResponse.json({ error: "Invalid or revoked API key" }, { status: 401 });
+    }
+
+    // Handle template-based sending
+    if (templateId) {
+      const template = await db.query.templates.findFirst({
+        where: and(eq(templates.id, templateId), eq(templates.userId, keyRecord.userId)),
+      });
+
+      if (!template) {
+        return NextResponse.json({ error: "Template not found or not owned by you" }, { status: 404 });
+      }
+
+      // Substitute variables in subject and html
+      const vars = variables || {};
+      subject = substituteVariables(template.subject, vars);
+      html = substituteVariables(template.html, vars);
+    }
+
+    // Validate required fields
+    if (!to || !subject || (!html && !text)) {
+      return NextResponse.json({ error: "Missing fields: to, subject, and html or text required" }, { status: 400 });
     }
 
     // Rate limiting: 100 emails/day per user

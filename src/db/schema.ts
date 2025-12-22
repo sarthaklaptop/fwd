@@ -66,6 +66,20 @@ export const emails = pgTable('emails', {
   index('emails_created_at_idx').on(table.createdAt),
 ]);
 
+// Email templates - reusable templates with variable substitution
+export const templates = pgTable('templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  subject: varchar('subject', { length: 500 }).notNull(),
+  html: text('html').notNull(),
+  variables: text('variables'),  // JSON array of variable names
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('templates_user_id_idx').on(table.userId),
+]);
+
 // Type inference
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -75,4 +89,5 @@ export type Email = typeof emails.$inferSelect;
 export type NewEmail = typeof emails.$inferInsert;
 export type SuppressionEntry = typeof suppressionList.$inferSelect;
 export type NewSuppressionEntry = typeof suppressionList.$inferInsert;
-
+export type Template = typeof templates.$inferSelect;
+export type NewTemplate = typeof templates.$inferInsert;

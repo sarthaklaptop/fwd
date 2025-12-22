@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { emails, apiKeys } from '@/db/schema';
+import { emails, apiKeys, templates } from '@/db/schema';
 import { eq, desc, count, and, gte, isNotNull } from 'drizzle-orm';
 import LogoutButton from './logout-button';
 import ApiKeysSection from './api-keys-section';
 import EmailsTable from './emails-table';
+import TemplatesSection from './templates-section';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -20,7 +21,7 @@ export default async function DashboardPage() {
   today.setHours(0, 0, 0, 0);
 
   // Fetch data in parallel
-  const [userEmails, userApiKeys, emailStats, todayStats] = await Promise.all([
+  const [userEmails, userApiKeys, userTemplates, emailStats, todayStats] = await Promise.all([
     db.select().from(emails).where(eq(emails.userId, user.id)).orderBy(desc(emails.createdAt)).limit(50),
     db.select({
       id: apiKeys.id,
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
       createdAt: apiKeys.createdAt,
       revokedAt: apiKeys.revokedAt,
     }).from(apiKeys).where(eq(apiKeys.userId, user.id)).orderBy(desc(apiKeys.createdAt)),
+    db.select().from(templates).where(eq(templates.userId, user.id)).orderBy(desc(templates.createdAt)),
     db.select({
       total: count(),
     }).from(emails).where(eq(emails.userId, user.id)),
@@ -102,6 +104,11 @@ export default async function DashboardPage() {
         {/* API Keys Section */}
         <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
           <ApiKeysSection initialKeys={userApiKeys} />
+        </section>
+
+        {/* Templates Section */}
+        <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+          <TemplatesSection initialTemplates={userTemplates} />
         </section>
 
         {/* Emails Table */}
