@@ -357,26 +357,45 @@ async function createBatchAndEmails(
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     if (isProd) {
-        // PROD: Queue emails via QStash in chunks of 50
-        const chunkSize = 50;
-        for (let i = 0; i < emailRecords.length; i += chunkSize) {
-            const chunk = emailRecords.slice(i, i + chunkSize);
-            await Promise.all(
-                chunk.map(record =>
-                    qstash.publishJSON({
-                        url: `${baseUrl}/api/qstash/email`,
-                        body: { 
-                            emailId: record.id, 
-                            to: record.to, 
-                            subject: record.subject, 
-                            html: record.html, 
-                            text: record.text 
-                        },
-                        retries: 3,
-                    })
-                )
-            );
-        }
+        // PROD: Queue emails via QStash - fire and forget (don't block response)
+        const baseUrlForQueue = baseUrl;
+        
+        // Start queuing in background, don't await
+        (async () => {
+            try {
+                const chunkSize = 50;
+                for (let i = 0; i < emailRecords.length; i += chunkSize) {
+                    const chunk = emailRecords.slice(i, i + chunkSize);
+                    await Promise.all(
+                        chunk.map(record =>
+                            qstash.publishJSON({
+                                url: `${baseUrlForQueue}/api/qstash/email`,
+                                body: { 
+                                    emailId: record.id, 
+                                    to: record.to, 
+                                    subject: record.subject, 
+                                    html: record.html, 
+                                    text: record.text 
+                                },
+                                retries: 3,
+                            })
+                        )
+                    );
+                }
+                console.log(`✅ Batch ${batch.id}: All ${emailRecords.length} emails queued to QStash`);
+            } catch (error) {
+                console.error(`❌ Batch ${batch.id}: QStash queuing error:`, error);
+            }
+        })();
+        
+        // Return immediately without waiting for queuing
+        return {
+            batchId: batch.id,
+            queued: emailRecords.length,
+            emailIds: emailRecords.map(e => e.id),
+            status: 'processing',
+            message: 'Batch accepted. Emails are being queued for delivery.',
+        };
     } else {
         // DEV MODE: Send directly via SES
         console.log(`📧 [DEV MODE] Batch ${batch.id}: Sending ${emailRecords.length} emails via SES...`);
