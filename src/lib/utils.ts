@@ -10,3 +10,32 @@ export function formatRelativeTime(date: Date | string): string {
   
   return then.toLocaleDateString();
 }
+
+export function getDateFilter(range: string): Date | null {
+  const now = new Date();
+  switch (range) {
+    case '7d':
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case '30d':
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case '90d':
+      return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    case 'all':
+      return null;
+    default:
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
+}
+
+
+export function formatDateISO(date: Date | string | null): string {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toISOString().split('T')[0];
+}
+
+
+export function formatTimestampISO(date: Date | string | null): string {
+  if (!date) return '';
+  return new Date(date).toISOString();
+}
