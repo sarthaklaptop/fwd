@@ -163,6 +163,8 @@ async function handleTemplateBatch(userId: string, templateId: string, recipient
 
     return NextResponse.json({
         batchId: result.batchId,
+        status: result.status || 'processing',
+        message: result.message || 'Batch accepted for processing',
         total: recipients.length,
         queued: result.queued,
         suppressed: suppressedCount,
@@ -264,6 +266,8 @@ async function handleDirectBatch(userId: string, directEmails: DirectEmail[]) {
 
     return NextResponse.json({
         batchId: result.batchId,
+        status: result.status || 'processing',
+        message: result.message || 'Batch accepted for processing',
         total: directEmails.length,
         queued: result.queued,
         suppressed: suppressedCount,
