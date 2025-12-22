@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { emails, apiKeys, suppressionList } from "@/db/schema";
 import { eq, and, isNull, gte, count } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
+import { injectOpenTracking } from "@/lib/tracking";
 
 const ses = new SESClient({
   region: process.env.AWS_REGION,
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     // Rate limiting: 100 emails/day per user
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const [emailCount] = await db
       .select({ count: count() })
       .from(emails)
@@ -51,14 +52,14 @@ export async function POST(req: Request) {
         eq(emails.userId, keyRecord.userId),
         gte(emails.createdAt, today)
       ));
-    
+
     const emailsSentToday = emailCount?.count || 0;
     const remaining = DAILY_LIMIT - emailsSentToday;
 
     if (emailsSentToday >= DAILY_LIMIT) {
       return NextResponse.json(
         { error: "Daily limit reached (100 emails/day). Resets at midnight UTC." },
-        { 
+        {
           status: 429,
           headers: {
             'X-RateLimit-Limit': String(DAILY_LIMIT),
@@ -75,8 +76,8 @@ export async function POST(req: Request) {
     });
 
     if (suppressed) {
-      return NextResponse.json({ 
-        error: `Email to ${recipientEmail} blocked: recipient is on suppression list (${suppressed.reason})` 
+      return NextResponse.json({
+        error: `Email to ${recipientEmail} blocked: recipient is on suppression list (${suppressed.reason})`
       }, { status: 400 });
     }
 
@@ -95,13 +96,18 @@ export async function POST(req: Request) {
     if (!isProd) {
       // DEV MODE: Send directly
       console.log("📧 [DEV MODE] Sending email directly...");
+
+      // Inject open tracking pixel into HTML content
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const trackedHtml = html ? injectOpenTracking(html, emailRecord.id, baseUrl) : undefined;
+
       const command = new SendEmailCommand({
         Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
         Destination: { ToAddresses: Array.isArray(to) ? to : [to] },
         Message: {
           Subject: { Data: subject },
           Body: {
-            Html: html ? { Data: html } : undefined,
+            Html: trackedHtml ? { Data: trackedHtml } : undefined,
             Text: text ? { Data: text } : undefined,
           },
         },
@@ -114,14 +120,14 @@ export async function POST(req: Request) {
       db.update(emails)
         .set({ status: 'completed', sesMessageId: response.MessageId, updatedAt: new Date() })
         .where(eq(emails.id, emailRecord.id))
-        .then(() => {})
+        .then(() => { })
         .catch(console.error);
 
       // Update lastUsedAt async (don't wait)
       db.update(apiKeys)
         .set({ lastUsedAt: new Date() })
         .where(eq(apiKeys.id, keyRecord.id))
-        .then(() => {})
+        .then(() => { })
         .catch(console.error);
 
       return NextResponse.json({

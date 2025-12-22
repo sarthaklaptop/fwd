@@ -4,6 +4,7 @@ import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { db } from "@/db";
 import { emails } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { injectOpenTracking } from "@/lib/tracking";
 
 // Initialize AWS SES
 const ses = new SESClient({
@@ -21,6 +22,10 @@ async function handler(req: NextRequest) {
   console.log(`📧 Processing email ${emailId} to: ${to}`);
 
   try {
+    // Inject open tracking pixel into HTML content
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const trackedHtml = html ? injectOpenTracking(html, emailId, baseUrl) : undefined;
+
     // Send via AWS SES with configuration set for bounce/complaint tracking
     const command = new SendEmailCommand({
       Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
@@ -28,7 +33,7 @@ async function handler(req: NextRequest) {
       Message: {
         Subject: { Data: subject },
         Body: {
-          Html: html ? { Data: html } : undefined,
+          Html: trackedHtml ? { Data: trackedHtml } : undefined,
           Text: text ? { Data: text } : undefined,
         },
       },
@@ -41,11 +46,11 @@ async function handler(req: NextRequest) {
     // Update database: status = completed
     if (emailId) {
       await db.update(emails)
-        .set({ 
-          status: 'completed', 
+        .set({
+          status: 'completed',
           sesMessageId: response.MessageId,
           errorMessage: null,  // Clears any previous error from failed attempts
-          updatedAt: new Date() 
+          updatedAt: new Date()
         })
         .where(eq(emails.id, emailId));
       console.log(`📝 Updated email ${emailId} status to 'completed'`);
@@ -61,10 +66,10 @@ async function handler(req: NextRequest) {
     // Update database: status = failed
     if (emailId) {
       await db.update(emails)
-        .set({ 
-          status: 'failed', 
+        .set({
+          status: 'failed',
           errorMessage: error.message,
-          updatedAt: new Date() 
+          updatedAt: new Date()
         })
         .where(eq(emails.id, emailId));
       console.log(`📝 Updated email ${emailId} status to 'failed'`);

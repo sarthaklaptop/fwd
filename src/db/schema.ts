@@ -58,6 +58,7 @@ export const emails = pgTable('emails', {
   sesMessageId: varchar('ses_message_id', { length: 255 }),
   errorMessage: text('error_message'),
   bounceType: varchar('bounce_type', { length: 50 }),
+  openedAt: timestamp('opened_at'),  // NULL = not opened, has value = opened
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
