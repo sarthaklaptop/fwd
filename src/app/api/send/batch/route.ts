@@ -95,12 +95,6 @@ async function handleTemplateBatch(userId: string, templateId: string, recipient
         }, { status: 400 });
     }
 
-    // Check daily rate limit
-    const rateLimitResult = await checkRateLimit(userId, recipients.length);
-    if (rateLimitResult.error) {
-        return NextResponse.json({ error: rateLimitResult.error }, { status: 429 });
-    }
-
     const errors: BatchError[] = [];
     const validRecipients: Array<{ to: string; subject: string; html: string; text?: string; index: number }> = [];
 
@@ -134,10 +128,17 @@ async function handleTemplateBatch(userId: string, templateId: string, recipient
         validRecipients.push({ to: email, subject, html, index: i });
     }
 
-    // Filter suppressed emails
-    const { filtered, suppressedCount } = await filterSuppressed(
-        validRecipients.map(r => r.to)
-    );
+    // Run rate limit and suppression checks in PARALLEL (reduces DB roundtrips)
+    const [rateLimitResult, suppressionResult] = await Promise.all([
+        checkRateLimit(userId, recipients.length),
+        filterSuppressed(validRecipients.map(r => r.to))
+    ]);
+
+    if (rateLimitResult.error) {
+        return NextResponse.json({ error: rateLimitResult.error }, { status: 429 });
+    }
+
+    const { filtered, suppressedCount } = suppressionResult;
     const filteredSet = new Set(filtered);
     const finalRecipients = validRecipients.filter(r => filteredSet.has(r.to));
 
@@ -188,12 +189,6 @@ async function handleDirectBatch(userId: string, directEmails: DirectEmail[]) {
         }, { status: 400 });
     }
 
-    // Check daily rate limit
-    const rateLimitResult = await checkRateLimit(userId, directEmails.length);
-    if (rateLimitResult.error) {
-        return NextResponse.json({ error: rateLimitResult.error }, { status: 429 });
-    }
-
     const errors: BatchError[] = [];
     const validEmails: Array<{ to: string; subject: string; html?: string; text?: string; index: number }> = [];
 
@@ -236,10 +231,17 @@ async function handleDirectBatch(userId: string, directEmails: DirectEmail[]) {
         });
     }
 
-    // Filter suppressed emails
-    const { filtered, suppressedCount } = await filterSuppressed(
-        validEmails.map(e => e.to)
-    );
+    // Run rate limit and suppression checks in PARALLEL (reduces DB roundtrips)
+    const [rateLimitResult, suppressionResult] = await Promise.all([
+        checkRateLimit(userId, directEmails.length),
+        filterSuppressed(validEmails.map(e => e.to))
+    ]);
+
+    if (rateLimitResult.error) {
+        return NextResponse.json({ error: rateLimitResult.error }, { status: 429 });
+    }
+
+    const { filtered, suppressedCount } = suppressionResult;
     const filteredSet = new Set(filtered);
     const finalEmails = validEmails.filter(e => filteredSet.has(e.to));
 
