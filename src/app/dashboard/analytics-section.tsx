@@ -50,18 +50,10 @@ export default function AnalyticsSection() {
             ]);
             
             if (overviewRes.ok) {
-                const overviewData = await overviewRes.json();
-                console.log('Overview data:', overviewData);
-                setOverview(overviewData);
-            } else {
-                console.error('Overview API error:', overviewRes.status);
+                setOverview(await overviewRes.json());
             }
             if (timelineRes.ok) {
-                const timelineData = await timelineRes.json();
-                console.log('Timeline data:', timelineData);
-                setTimeline(timelineData);
-            } else {
-                console.error('Timeline API error:', timelineRes.status);
+                setTimeline(await timelineRes.json());
             }
         } catch (error) {
             console.error('Failed to fetch analytics:', error);
