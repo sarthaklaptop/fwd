@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, pgEnum, index, uniqueIndex, integer } from 'drizzle-orm/pg-core';
 
 // Email status enum
 export const emailStatusEnum = pgEnum('email_status', [
@@ -8,6 +8,14 @@ export const emailStatusEnum = pgEnum('email_status', [
   'failed',
   'bounced',
   'complained'
+]);
+
+// Batch status enum
+export const batchStatusEnum = pgEnum('batch_status', [
+  'processing',
+  'completed',
+  'partial',
+  'failed'
 ]);
 
 // Users table
@@ -45,10 +53,30 @@ export const suppressionList = pgTable('suppression_list', {
   uniqueIndex('suppression_list_email_idx').on(table.email),
 ]);
 
+// Batches table - tracks batch send operations
+export const batches = pgTable('batches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  templateId: uuid('template_id').references(() => templates.id),
+  total: integer('total').notNull(),
+  valid: integer('valid').notNull(),
+  suppressed: integer('suppressed').default(0).notNull(),
+  duplicates: integer('duplicates').default(0).notNull(),
+  queued: integer('queued').default(0).notNull(),
+  completed: integer('completed').default(0).notNull(),
+  failed: integer('failed').default(0).notNull(),
+  status: batchStatusEnum('status').default('processing').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('batches_user_id_idx').on(table.userId),
+  index('batches_created_at_idx').on(table.createdAt),
+]);
+
 // Emails table
 export const emails = pgTable('emails', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id),
+  batchId: uuid('batch_id').references(() => batches.id),  // Link to batch (null for single sends)
   to: varchar('to', { length: 255 }).notNull(),
   subject: varchar('subject', { length: 500 }).notNull(),
   html: text('html'),
@@ -63,6 +91,7 @@ export const emails = pgTable('emails', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('emails_user_id_idx').on(table.userId),
+  index('emails_batch_id_idx').on(table.batchId),
   index('emails_created_at_idx').on(table.createdAt),
 ]);
 
@@ -91,3 +120,5 @@ export type SuppressionEntry = typeof suppressionList.$inferSelect;
 export type NewSuppressionEntry = typeof suppressionList.$inferInsert;
 export type Template = typeof templates.$inferSelect;
 export type NewTemplate = typeof templates.$inferInsert;
+export type Batch = typeof batches.$inferSelect;
+export type NewBatch = typeof batches.$inferInsert;

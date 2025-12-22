@@ -8,6 +8,7 @@ import ApiKeysSection from './api-keys-section';
 import TemplatesSection from './templates-section';
 import AnalyticsSection from './analytics-section';
 import EmailsSection from './emails-section';
+import BatchesSection from './batches-section';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -97,6 +98,11 @@ export default async function DashboardPage() {
         {/* Templates Section */}
         <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
           <TemplatesSection initialTemplates={userTemplates} />
+        </section>
+
+        {/* Batches Section */}
+        <section className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+          <BatchesSection />
         </section>
 
         {/* Emails Section */}
