@@ -169,7 +169,6 @@ async function handleTemplateBatch(userId: string, templateId: string, recipient
         queued: result.queued,
         suppressed: suppressedCount,
         duplicates: duplicateCount,
-        emailIds: result.emailIds,
         errors: errors.length > 0 ? errors : undefined,
         rateLimit: {
             limit: DAILY_LIMIT,
@@ -272,7 +271,6 @@ async function handleDirectBatch(userId: string, directEmails: DirectEmail[]) {
         queued: result.queued,
         suppressed: suppressedCount,
         duplicates: duplicateCount,
-        emailIds: result.emailIds,
         errors: errors.length > 0 ? errors : undefined,
         rateLimit: {
             limit: DAILY_LIMIT,
@@ -344,7 +342,68 @@ async function createBatchAndEmails(
         status: 'processing',
     }).returning({ id: batches.id });
 
-    // Bulk insert email records
+    // Bulk insert email records - only return IDs in prod (we already have content in recipients)
+    const isProd = !!process.env.VERCEL;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    if (isProd) {
+        // PROD: Insert and only return IDs (faster)
+        const emailIds = await db.insert(emails).values(
+            recipients.map(r => ({
+                userId,
+                batchId: batch.id,
+                to: r.to,
+                subject: r.subject,
+                html: r.html,
+                text: r.text,
+                status: 'pending' as const,
+            }))
+        ).returning({ id: emails.id });
+
+        // Queue emails via QStash - fire and forget (don't block response)
+        const baseUrlForQueue = baseUrl;
+        const recipientsForQueue = recipients;
+        const emailIdsForQueue = emailIds;
+        
+        // Start queuing in background, don't await
+        (async () => {
+            try {
+                const chunkSize = 50;
+                for (let i = 0; i < emailIdsForQueue.length; i += chunkSize) {
+                    const chunkIds = emailIdsForQueue.slice(i, i + chunkSize);
+                    const chunkRecipients = recipientsForQueue.slice(i, i + chunkSize);
+                    await Promise.all(
+                        chunkIds.map((record, idx) =>
+                            qstash.publishJSON({
+                                url: `${baseUrlForQueue}/api/qstash/email`,
+                                body: { 
+                                    emailId: record.id, 
+                                    to: chunkRecipients[idx].to, 
+                                    subject: chunkRecipients[idx].subject, 
+                                    html: chunkRecipients[idx].html, 
+                                    text: chunkRecipients[idx].text 
+                                },
+                                retries: 3,
+                            })
+                        )
+                    );
+                }
+                console.log(`✅ Batch ${batch.id}: All ${emailIdsForQueue.length} emails queued to QStash`);
+            } catch (error) {
+                console.error(`❌ Batch ${batch.id}: QStash queuing error:`, error);
+            }
+        })();
+        
+        // Return immediately without waiting for queuing
+        return {
+            batchId: batch.id,
+            queued: emailIds.length,
+            status: 'processing',
+            message: 'Batch accepted. Emails are being queued for delivery.',
+        };
+    }
+
+    // DEV MODE: Full insert with returning for direct sending
     const emailRecords = await db.insert(emails).values(
         recipients.map(r => ({
             userId,
@@ -357,121 +416,68 @@ async function createBatchAndEmails(
         }))
     ).returning({ id: emails.id, to: emails.to, subject: emails.subject, html: emails.html, text: emails.text });
 
-    const isProd = !!process.env.VERCEL;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // DEV MODE: Send directly via SES
+    console.log(`📧 [DEV MODE] Batch ${batch.id}: Sending ${emailRecords.length} emails via SES...`);
+    
+    let successCount = 0;
+    let failCount = 0;
 
-    if (isProd) {
-        // PROD: Queue emails via QStash - fire and forget (don't block response)
-        const baseUrlForQueue = baseUrl;
-        
-        // Start queuing in background, don't await
-        (async () => {
-            try {
-                const chunkSize = 50;
-                for (let i = 0; i < emailRecords.length; i += chunkSize) {
-                    const chunk = emailRecords.slice(i, i + chunkSize);
-                    await Promise.all(
-                        chunk.map(record =>
-                            qstash.publishJSON({
-                                url: `${baseUrlForQueue}/api/qstash/email`,
-                                body: { 
-                                    emailId: record.id, 
-                                    to: record.to, 
-                                    subject: record.subject, 
-                                    html: record.html, 
-                                    text: record.text 
-                                },
-                                retries: 3,
-                            })
-                        )
-                    );
-                }
-                console.log(`✅ Batch ${batch.id}: All ${emailRecords.length} emails queued to QStash`);
-            } catch (error) {
-                console.error(`❌ Batch ${batch.id}: QStash queuing error:`, error);
-            }
-        })();
-        
-        // Return immediately without waiting for queuing
-        return {
-            batchId: batch.id,
-            queued: emailRecords.length,
-            emailIds: emailRecords.map(e => e.id),
-            status: 'processing',
-            message: 'Batch accepted. Emails are being queued for delivery.',
-        };
-    } else {
-        // DEV MODE: Send directly via SES
-        console.log(`📧 [DEV MODE] Batch ${batch.id}: Sending ${emailRecords.length} emails via SES...`);
-        
-        let successCount = 0;
-        let failCount = 0;
+    for (const record of emailRecords) {
+        try {
+            // Inject open tracking pixel
+            const trackedHtml = record.html 
+                ? injectOpenTracking(record.html, record.id, baseUrl) 
+                : undefined;
 
-        for (const record of emailRecords) {
-            try {
-                // Inject open tracking pixel
-                const trackedHtml = record.html 
-                    ? injectOpenTracking(record.html, record.id, baseUrl) 
-                    : undefined;
-
-                const command = new SendEmailCommand({
-                    Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
-                    Destination: { ToAddresses: [record.to] },
-                    Message: {
-                        Subject: { Data: record.subject },
-                        Body: {
-                            Html: trackedHtml ? { Data: trackedHtml } : undefined,
-                            Text: record.text ? { Data: record.text } : undefined,
-                        },
+            const command = new SendEmailCommand({
+                Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
+                Destination: { ToAddresses: [record.to] },
+                Message: {
+                    Subject: { Data: record.subject },
+                    Body: {
+                        Html: trackedHtml ? { Data: trackedHtml } : undefined,
+                        Text: record.text ? { Data: record.text } : undefined,
                     },
-                    ConfigurationSetName: "fwd-notifications",
-                });
+                },
+                ConfigurationSetName: "fwd-notifications",
+            });
 
-                const response = await ses.send(command);
-                
-                // Update email status to completed
-                await db.update(emails)
-                    .set({ status: 'completed', sesMessageId: response.MessageId, updatedAt: new Date() })
-                    .where(eq(emails.id, record.id));
-                
-                successCount++;
-                console.log(`  ✓ Sent to ${record.to}`);
-            } catch (error: any) {
-                failCount++;
-                console.error(`  ✗ Failed to send to ${record.to}:`, error.message);
-                
-                // Update email status to failed
-                await db.update(emails)
-                    .set({ status: 'failed', errorMessage: error.message, updatedAt: new Date() })
-                    .where(eq(emails.id, record.id));
-            }
+            const response = await ses.send(command);
+            
+            // Update email status to completed
+            await db.update(emails)
+                .set({ status: 'completed', sesMessageId: response.MessageId, updatedAt: new Date() })
+                .where(eq(emails.id, record.id));
+            
+            successCount++;
+            console.log(`  ✓ Sent to ${record.to}`);
+        } catch (error: any) {
+            failCount++;
+            console.error(`  ✗ Failed to send to ${record.to}:`, error.message);
+            
+            // Update email status to failed
+            await db.update(emails)
+                .set({ status: 'failed', errorMessage: error.message, updatedAt: new Date() })
+                .where(eq(emails.id, record.id));
         }
-
-        console.log(`📧 [DEV MODE] Batch ${batch.id}: ${successCount} sent, ${failCount} failed`);
-
-        // Update batch completed/failed counts
-        await db.update(batches)
-            .set({ 
-                completed: successCount, 
-                failed: failCount,
-                status: failCount === 0 ? 'completed' : failCount === emailRecords.length ? 'failed' : 'partial'
-            })
-            .where(eq(batches.id, batch.id));
-
-        return {
-            batchId: batch.id,
-            queued: emailRecords.length,
-            emailIds: emailRecords.map(e => e.id),
-        };
     }
 
-    // In production, batch stays 'processing' - QStash handler will update individual email statuses
-    // and we can calculate batch status from email statuses on demand
+    console.log(`📧 [DEV MODE] Batch ${batch.id}: ${successCount} sent, ${failCount} failed`);
+
+    // Update batch completed/failed counts
+    await db.update(batches)
+        .set({ 
+            completed: successCount, 
+            failed: failCount,
+            status: failCount === 0 ? 'completed' : failCount === emailRecords.length ? 'failed' : 'partial'
+        })
+        .where(eq(batches.id, batch.id));
+
     return {
         batchId: batch.id,
         queued: emailRecords.length,
-        emailIds: emailRecords.map(e => e.id),
-        message: 'Batch queued for processing. Check /api/batches/:id for status updates.',
+        status: 'completed',
+        message: 'DEV MODE: All emails sent directly via SES.',
     };
 }
 
