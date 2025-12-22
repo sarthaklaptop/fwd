@@ -7,6 +7,7 @@ interface Email {
   to: string;
   subject: string;
   status: string;
+  openedAt: Date | null;
   createdAt: Date;
 }
 
@@ -29,6 +30,7 @@ export default function EmailsTable({ emails }: { emails: Email[] }) {
             <th className="px-4 py-3">To</th>
             <th className="px-4 py-3">Subject</th>
             <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Opened</th>
             <th className="px-4 py-3">Time</th>
           </tr>
         </thead>
@@ -39,6 +41,9 @@ export default function EmailsTable({ emails }: { emails: Email[] }) {
               <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{email.subject}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={email.status} />
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-400" suppressHydrationWarning>
+                {email.openedAt ? formatRelativeTime(email.openedAt) : '—'}
               </td>
               <td className="px-4 py-3 text-sm text-gray-400" suppressHydrationWarning>
                 {formatRelativeTime(email.createdAt)}
