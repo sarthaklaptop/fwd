@@ -11,11 +11,7 @@ const TRANSPARENT_GIF = Buffer.from(
 
 /**
  * Open tracking endpoint.
- * 
- * When an email client loads this image, we record the open event.
- * Returns a 1x1 transparent GIF.
- * 
- * @route GET /api/track/open/:id
+ * Returns a 1x1 transparent GIF and records the open event.
  */
 export async function GET(
     req: NextRequest,
@@ -23,24 +19,22 @@ export async function GET(
 ) {
     const { id: emailId } = await params;
 
-    // Fire-and-forget: Update openedAt if not already set
-    // Don't await - return pixel immediately for fast response
-    db.update(emails)
-        .set({ openedAt: new Date() })
-        .where(
-            and(
-                eq(emails.id, emailId),
-                isNull(emails.openedAt)  // Only update if not already opened
-            )
-        )
-        .then(() => {
-            console.log(`📬 Email ${emailId} opened`);
-        })
-        .catch((error) => {
-            console.error(`Failed to record open for ${emailId}:`, error);
-        });
+    try {
+        // Update openedAt if not already set
+        await db.update(emails)
+            .set({ openedAt: new Date() })
+            .where(
+                and(
+                    eq(emails.id, emailId),
+                    isNull(emails.openedAt)
+                )
+            );
+        console.log(`📬 Email ${emailId} opened`);
+    } catch (error) {
+        console.error(`Failed to record open for ${emailId}:`, error);
+    }
 
-    // Return 1x1 transparent GIF immediately
+    // Return 1x1 transparent GIF
     return new NextResponse(TRANSPARENT_GIF, {
         status: 200,
         headers: {
@@ -52,3 +46,4 @@ export async function GET(
         },
     });
 }
+
