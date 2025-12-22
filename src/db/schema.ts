@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, pgEnum, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // Email status enum
 export const emailStatusEnum = pgEnum('email_status', [
@@ -29,7 +29,9 @@ export const apiKeys = pgTable('api_keys', {
   lastUsedAt: timestamp('last_used_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   revokedAt: timestamp('revoked_at'),
-});
+}, (table) => [
+  index('api_keys_user_id_idx').on(table.userId),
+]);
 
 // Suppression list - emails that should not receive messages
 export const suppressionList = pgTable('suppression_list', {
@@ -39,7 +41,9 @@ export const suppressionList = pgTable('suppression_list', {
   userId: uuid('user_id').references(() => users.id),
   emailId: uuid('email_id').references(() => emails.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex('suppression_list_email_idx').on(table.email),
+]);
 
 // Emails table
 export const emails = pgTable('emails', {
@@ -56,7 +60,10 @@ export const emails = pgTable('emails', {
   bounceType: varchar('bounce_type', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('emails_user_id_idx').on(table.userId),
+  index('emails_created_at_idx').on(table.createdAt),
+]);
 
 // Type inference
 export type User = typeof users.$inferSelect;
