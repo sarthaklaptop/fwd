@@ -18,7 +18,7 @@ interface EventPayload {
  */
 export async function publishEvent(
     userId: string,
-    eventType: 'email.sent' | 'email.delivered' | 'email.opened' | 'email.bounced' | 'email.complained',
+    eventType: 'email.sent' | 'email.delivered' | 'email.opened' | 'email.bounced' | 'email.complained' | 'email.unsubscribed',
     payload: EventPayload
 ) {
     try {

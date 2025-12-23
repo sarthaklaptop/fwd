@@ -4,7 +4,7 @@ import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { db } from "@/db";
 import { emails, batches } from "@/db/schema";
 import { eq, and, count, sql } from "drizzle-orm";
-import { injectOpenTracking } from "@/lib/tracking";
+import { injectOpenTracking, injectUnsubscribeLink } from "@/lib/tracking";
 
 // Initialize AWS SES
 const ses = new SESClient({
@@ -68,20 +68,37 @@ async function updateBatchStatus(batchId: string) {
 
 async function handler(req: NextRequest) {
   const body = await req.json();
-  const { emailId, to, subject, html, text } = body;
+  const { emailId, to, subject, html, text, userId } = body;
 
   console.log(`📧 Processing email ${emailId} to: ${to}`);
 
-  // Get the email record to find batch ID
+  // Get the email record to find batch ID and userId (fallback)
   const emailRecord = await db.query.emails.findFirst({
     where: eq(emails.id, emailId),
-    columns: { batchId: true },
+    columns: { batchId: true, userId: true },
   });
 
+  const effectiveUserId = userId || emailRecord?.userId;
+
   try {
-    // Inject open tracking pixel into HTML content
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const trackedHtml = html ? injectOpenTracking(html, emailId, baseUrl) : undefined;
+    
+    // Process HTML: add tracking pixel and unsubscribe link
+    let processedHtml = html;
+    if (processedHtml) {
+      // Inject open tracking pixel
+      processedHtml = injectOpenTracking(processedHtml, emailId, baseUrl);
+      
+      // Inject unsubscribe link footer (only if we have userId)
+      if (effectiveUserId) {
+        processedHtml = injectUnsubscribeLink(processedHtml, emailId, to, effectiveUserId, baseUrl);
+      }
+    }
+
+    // Build List-Unsubscribe header (TODO: implement with SendRawEmailCommand for full header support)
+    // const listUnsubscribeHeader = effectiveUserId 
+    //   ? getListUnsubscribeHeader(emailId, to, effectiveUserId, baseUrl)
+    //   : undefined;
 
     // Send via AWS SES with configuration set for bounce/complaint tracking
     const command = new SendEmailCommand({
@@ -90,7 +107,7 @@ async function handler(req: NextRequest) {
       Message: {
         Subject: { Data: subject },
         Body: {
-          Html: trackedHtml ? { Data: trackedHtml } : undefined,
+          Html: processedHtml ? { Data: processedHtml } : undefined,
           Text: text ? { Data: text } : undefined,
         },
       },

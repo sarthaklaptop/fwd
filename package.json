@@ -19,6 +19,7 @@
     "@upstash/qstash": "^2.8.4",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
+    "jsonwebtoken": "^9.0.3",
     "next": "16.0.10",
     "postcss": "^8.5.6",
     "postgres": "^3.4.7",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

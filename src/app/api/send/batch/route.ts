@@ -6,7 +6,7 @@ import { emails, apiKeys, suppressionList, templates, batches } from "@/db/schem
 import { eq, and, isNull, gte, count, inArray } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
 import { substituteVariables } from "@/lib/templates";
-import { injectOpenTracking } from "@/lib/tracking";
+import { injectOpenTracking, injectUnsubscribeLink } from "@/lib/tracking";
 
 const ses = new SESClient({
     region: process.env.AWS_REGION,
@@ -366,6 +366,7 @@ async function createBatchAndEmails(
         const baseUrlForQueue = baseUrl;
         const recipientsForQueue = recipients;
         const emailIdsForQueue = emailIds;
+        const userIdForQueue = userId;
         
         // Start queuing in background, don't await
         (async () => {
@@ -383,7 +384,8 @@ async function createBatchAndEmails(
                                     to: chunkRecipients[idx].to, 
                                     subject: chunkRecipients[idx].subject, 
                                     html: chunkRecipients[idx].html, 
-                                    text: chunkRecipients[idx].text 
+                                    text: chunkRecipients[idx].text,
+                                    userId: userIdForQueue, // For unsubscribe link generation
                                 },
                                 retries: 3,
                             })
@@ -426,10 +428,12 @@ async function createBatchAndEmails(
 
     for (const record of emailRecords) {
         try {
-            // Inject open tracking pixel
-            const trackedHtml = record.html 
-                ? injectOpenTracking(record.html, record.id, baseUrl) 
-                : undefined;
+            // Inject open tracking pixel and unsubscribe link
+            let processedHtml = record.html;
+            if (processedHtml) {
+                processedHtml = injectOpenTracking(processedHtml, record.id, baseUrl);
+                processedHtml = injectUnsubscribeLink(processedHtml, record.id, record.to, userId, baseUrl);
+            }
 
             const command = new SendEmailCommand({
                 Source: process.env.SES_FROM_EMAIL || "sarthaklaptop402@gmail.com",
@@ -437,7 +441,7 @@ async function createBatchAndEmails(
                 Message: {
                     Subject: { Data: record.subject },
                     Body: {
-                        Html: trackedHtml ? { Data: trackedHtml } : undefined,
+                        Html: processedHtml ? { Data: processedHtml } : undefined,
                         Text: record.text ? { Data: record.text } : undefined,
                     },
                 },

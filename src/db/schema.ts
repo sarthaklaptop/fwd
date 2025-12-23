@@ -18,6 +18,22 @@ export const batchStatusEnum = pgEnum('batch_status', [
   'failed'
 ]);
 
+// Suppression reason enum
+export const suppressionReasonEnum = pgEnum('suppression_reason', [
+  'bounce',
+  'complaint',
+  'unsubscribe',
+  'manual'
+]);
+
+// Suppression source enum
+export const suppressionSourceEnum = pgEnum('suppression_source', [
+  'ses',
+  'link',
+  'api',
+  'dashboard'
+]);
+
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -45,7 +61,8 @@ export const apiKeys = pgTable('api_keys', {
 export const suppressionList = pgTable('suppression_list', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 255 }).notNull(),
-  reason: varchar('reason', { length: 50 }).notNull(),
+  reason: suppressionReasonEnum('reason').notNull(),
+  source: suppressionSourceEnum('source'),
   userId: uuid('user_id').references(() => users.id),
   emailId: uuid('email_id').references(() => emails.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
