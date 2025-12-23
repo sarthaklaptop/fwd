@@ -7,6 +7,7 @@ import { eq, and, isNull, gte, count } from "drizzle-orm";
 import { hashApiKey } from "@/lib/api-keys";
 import { injectOpenTracking } from "@/lib/tracking";
 import { substituteVariables } from "@/lib/templates";
+import { publishEvent } from "@/lib/events";
 
 const ses = new SESClient({
   region: process.env.AWS_REGION,
@@ -28,7 +29,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     let { to, subject, html, text, templateId, variables } = body;
 
-    // Validate API key first
     const keyHash = hashApiKey(apiKey);
     const keyRecord = await db.query.apiKeys.findFirst({
       where: and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt))
@@ -38,7 +38,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid or revoked API key" }, { status: 401 });
     }
 
-    // Handle template-based sending
     if (templateId) {
       const template = await db.query.templates.findFirst({
         where: and(eq(templates.id, templateId), eq(templates.userId, keyRecord.userId)),
@@ -48,18 +47,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Template not found or not owned by you" }, { status: 404 });
       }
 
-      // Substitute variables in subject and html
       const vars = variables || {};
       subject = substituteVariables(template.subject, vars);
       html = substituteVariables(template.html, vars);
     }
 
-    // Validate required fields
     if (!to || !subject || (!html && !text)) {
       return NextResponse.json({ error: "Missing fields: to, subject, and html or text required" }, { status: 400 });
     }
 
-    // Rate limiting: 100 emails/day per user
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -87,7 +83,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check suppression list
     const recipientEmail = (Array.isArray(to) ? to[0] : to).toLowerCase();
     const suppressed = await db.query.suppressionList.findFirst({
       where: eq(suppressionList.email, recipientEmail)
@@ -99,7 +94,6 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Create email record
     const [emailRecord] = await db.insert(emails).values({
       userId: keyRecord.userId,
       to,
@@ -107,15 +101,14 @@ export async function POST(req: Request) {
       html,
       text,
       status: 'processing',
-    }).returning({ id: emails.id });
+    }).returning({ id: emails.id, userId: emails.userId });
 
     const isProd = !!process.env.VERCEL;
 
     if (!isProd) {
-      // DEV MODE: Send directly
+      // DEV: Direct Send via SES
       console.log("📧 [DEV MODE] Sending email directly...");
 
-      // Inject open tracking pixel into HTML content
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const trackedHtml = html ? injectOpenTracking(html, emailRecord.id, baseUrl) : undefined;
 
@@ -134,19 +127,23 @@ export async function POST(req: Request) {
       const response = await ses.send(command);
       console.log(`✅ [DEV MODE] Email sent! SES ID: ${response.MessageId}`);
 
-      // Update status async (don't wait)
       db.update(emails)
         .set({ status: 'completed', sesMessageId: response.MessageId, updatedAt: new Date() })
         .where(eq(emails.id, emailRecord.id))
         .then(() => { })
         .catch(console.error);
 
-      // Update lastUsedAt async (don't wait)
       db.update(apiKeys)
         .set({ lastUsedAt: new Date() })
         .where(eq(apiKeys.id, keyRecord.id))
         .then(() => { })
         .catch(console.error);
+
+      await publishEvent(emailRecord.userId!, 'email.sent', {
+        emailId: emailRecord.id,
+        to: Array.isArray(to) ? to[0] : to,
+        templateId,
+      });
 
       return NextResponse.json({
         success: true,
@@ -170,7 +167,6 @@ export async function POST(req: Request) {
       retries: 3,
     });
 
-    // Update status and lastUsedAt async (don't wait for response)
     Promise.all([
       db.update(emails)
         .set({ messageId: response.messageId, updatedAt: new Date() })
@@ -179,6 +175,12 @@ export async function POST(req: Request) {
         .set({ lastUsedAt: new Date() })
         .where(eq(apiKeys.id, keyRecord.id)),
     ]).catch(console.error);
+
+    await publishEvent(keyRecord.userId, 'email.sent', {
+      emailId: emailRecord.id,
+      to: Array.isArray(to) ? to[0] : to,
+      templateId,
+    });
 
     return NextResponse.json({
       success: true,

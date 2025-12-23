@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { emails } from '@/db/schema';
 import { eq, isNull, and } from 'drizzle-orm';
+import { publishEvent } from '@/lib/events';
 
 // 1x1 transparent GIF (43 bytes)
 const TRANSPARENT_GIF = Buffer.from(
@@ -9,10 +10,6 @@ const TRANSPARENT_GIF = Buffer.from(
     'base64'
 );
 
-/**
- * Open tracking endpoint.
- * Returns a 1x1 transparent GIF and records the open event.
- */
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -20,7 +17,6 @@ export async function GET(
     const { id: emailId } = await params;
 
     try {
-        // Update openedAt if not already set
         await db.update(emails)
             .set({ openedAt: new Date() })
             .where(
@@ -30,11 +26,19 @@ export async function GET(
                 )
             );
         console.log(`📬 Email ${emailId} opened`);
+
+        const email = await db.query.emails.findFirst({
+            where: eq(emails.id, emailId),
+            columns: { userId: true }
+        });
+
+        if (email?.userId) {
+            await publishEvent(email.userId, 'email.opened', { emailId });
+        }
     } catch (error) {
         console.error(`Failed to record open for ${emailId}:`, error);
     }
 
-    // Return 1x1 transparent GIF
     return new NextResponse(TRANSPARENT_GIF, {
         status: 200,
         headers: {
@@ -46,4 +50,3 @@ export async function GET(
         },
     });
 }
-

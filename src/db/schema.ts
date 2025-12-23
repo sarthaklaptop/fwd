@@ -109,6 +109,32 @@ export const templates = pgTable('templates', {
   index('templates_user_id_idx').on(table.userId),
 ]);
 
+// Webhooks table - User subscriptions to events
+export const webhooks = pgTable('webhooks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  url: varchar('url', { length: 2000 }).notNull(),
+  events: text('events').notNull(), // JSON array of event types
+  secret: varchar('secret', { length: 255 }).notNull(), // Signing secret
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('webhooks_user_id_idx').on(table.userId),
+]);
+
+// Webhook events - Log of sent webhooks
+export const webhookEvents = pgTable('webhook_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  webhookId: uuid('webhook_id').references(() => webhooks.id).notNull(),
+  eventType: varchar('event_type', { length: 50 }).notNull(),
+  payload: text('payload').notNull(), // JSON payload
+  responseStatus: integer('response_status'),
+  responseBody: text('response_body'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('webhook_events_webhook_id_idx').on(table.webhookId),
+]);
+
 // Type inference
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -122,3 +148,7 @@ export type Template = typeof templates.$inferSelect;
 export type NewTemplate = typeof templates.$inferInsert;
 export type Batch = typeof batches.$inferSelect;
 export type NewBatch = typeof batches.$inferInsert;
+export type Webhook = typeof webhooks.$inferSelect;
+export type NewWebhook = typeof webhooks.$inferInsert;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
