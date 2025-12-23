@@ -2,12 +2,20 @@
 
 import { useState } from 'react';
 import { ConfirmDialog, Toast } from '@/components/ui';
+import { formatRelativeTime } from '@/lib/utils';
 
 interface Webhook {
     id: string;
     url: string;
     events: string[];
     secret: string;
+    createdAt: Date;
+}
+
+interface WebhookEvent {
+    id: string;
+    eventType: string;
+    responseStatus: number;
     createdAt: Date;
 }
 
@@ -29,7 +37,11 @@ export default function WebhooksSection({ initialWebhooks }: { initialWebhooks: 
     // Form state
     const [url, setUrl] = useState('');
     const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
-    const [showSecretId, setShowSecretId] = useState<string | null>(null);
+
+    // Logs state
+    const [logsWebhook, setLogsWebhook] = useState<Webhook | null>(null);
+    const [logs, setLogs] = useState<WebhookEvent[]>([]);
+    const [logsLoading, setLogsLoading] = useState(false);
 
     const openCreateModal = () => {
         setUrl('');
@@ -102,6 +114,21 @@ export default function WebhooksSection({ initialWebhooks }: { initialWebhooks: 
         }
     };
 
+    const viewLogs = async (webhook: Webhook) => {
+        setLogsWebhook(webhook);
+        setLogsLoading(true);
+        try {
+            const res = await fetch(`/api/webhooks/${webhook.id}/events`);
+            if (res.ok) {
+                const data = await res.json();
+                setLogs(data.events);
+            }
+        } catch (error) {
+            console.error('Failed to fetch logs:', error);
+        }
+        setLogsLoading(false);
+    };
+
     const copySecret = (secret: string) => {
         navigator.clipboard.writeText(secret);
         setToast({ message: 'Secret copied to clipboard', type: 'success' });
@@ -118,7 +145,7 @@ export default function WebhooksSection({ initialWebhooks }: { initialWebhooks: 
                     onClick={openCreateModal}
                     className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg transition-all shadow-lg shadow-blue-500/20"
                 >
-                    + Add Endpoinst
+                    + Add Endpoint
                 </button>
             </div>
 
@@ -145,6 +172,12 @@ export default function WebhooksSection({ initialWebhooks }: { initialWebhooks: 
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={() => viewLogs(webhook)}
+                                        className="text-gray-400 hover:text-white text-sm px-2 py-1 rounded hover:bg-gray-700/50 transition-colors"
+                                    >
+                                        📋 Logs
+                                    </button>
                                     <button
                                         onClick={() => testWebhook(webhook.id)}
                                         disabled={loading}
@@ -240,6 +273,73 @@ export default function WebhooksSection({ initialWebhooks }: { initialWebhooks: 
                             >
                                 Cancel
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Logs Modal */}
+            {logsWebhook && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[70vh] overflow-hidden shadow-2xl">
+                        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Delivery Logs</h3>
+                                <p className="text-gray-400 text-xs font-mono truncate max-w-md">{logsWebhook.url}</p>
+                            </div>
+                            <button
+                                onClick={() => setLogsWebhook(null)}
+                                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="p-4 overflow-y-auto max-h-[calc(70vh-80px)]">
+                            {logsLoading ? (
+                                <div className="animate-pulse space-y-3">
+                                    {[...Array(5)].map((_, i) => (
+                                        <div key={i} className="h-10 bg-gray-700/50 rounded"></div>
+                                    ))}
+                                </div>
+                            ) : logs.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <div className="text-3xl mb-2">📭</div>
+                                    <p className="text-gray-400">No delivery attempts yet</p>
+                                    <p className="text-gray-500 text-sm">Use the Test button to send a test event</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-700">
+                                            <th className="pb-2">Event</th>
+                                            <th className="pb-2">Status</th>
+                                            <th className="pb-2">Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-700/50">
+                                        {logs.map((log) => (
+                                            <tr key={log.id}>
+                                                <td className="py-2 text-purple-300">{log.eventType}</td>
+                                                <td className="py-2">
+                                                    {log.responseStatus >= 200 && log.responseStatus < 300 ? (
+                                                        <span className="text-green-400">{log.responseStatus} ✓</span>
+                                                    ) : log.responseStatus === 0 ? (
+                                                        <span className="text-red-400">Failed</span>
+                                                    ) : (
+                                                        <span className="text-yellow-400">{log.responseStatus}</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-2 text-gray-400" suppressHydrationWarning>
+                                                    {formatRelativeTime(log.createdAt)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     </div>
                 </div>
