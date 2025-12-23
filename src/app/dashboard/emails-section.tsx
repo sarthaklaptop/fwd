@@ -103,7 +103,7 @@ export default function EmailsSection() {
         try {
             const params = new URLSearchParams();
             if (statusFilter) params.set('status', statusFilter);
-            
+
             const res = await fetch(`/api/emails/export?${params}`);
             if (res.ok) {
                 const blob = await res.blob();
@@ -128,23 +128,33 @@ export default function EmailsSection() {
                     <h2 className="text-xl font-bold text-white">Email Logs</h2>
                     <p className="text-gray-400 text-sm">Search and browse sent emails</p>
                 </div>
-                <button
-                    onClick={handleExport}
-                    disabled={exporting}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-                >
-                    {exporting ? (
-                        <>
-                            <LoadingSpinner />
-                            Exporting...
-                        </>
-                    ) : (
-                        <>
-                            <DownloadIcon />
-                            Export CSV
-                        </>
-                    )}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => fetchEmails()}
+                        disabled={loading}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                        title="Refresh"
+                    >
+                        <RefreshIcon className={loading ? 'animate-spin' : ''} />
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        disabled={exporting}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {exporting ? (
+                            <>
+                                <LoadingSpinner />
+                                Exporting...
+                            </>
+                        ) : (
+                            <>
+                                <DownloadIcon />
+                                Export CSV
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -414,6 +424,14 @@ function CloseIcon({ className }: { className?: string }) {
     return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+    return (
+        <svg className={`w-4 h-4 ${className || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
     );
 }

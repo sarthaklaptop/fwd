@@ -72,9 +72,19 @@ export default function BatchesSection() {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div>
-                <h2 className="text-xl font-bold text-white">Batch Sends</h2>
-                <p className="text-gray-400 text-sm">Manage your bulk email campaigns</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-bold text-white">Batch Sends</h2>
+                    <p className="text-gray-400 text-sm">Manage your bulk email campaigns</p>
+                </div>
+                <button
+                    onClick={() => fetchBatches()}
+                    disabled={loading}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                    title="Refresh"
+                >
+                    <RefreshIcon className={loading ? 'animate-spin' : ''} />
+                </button>
             </div>
 
             {/* Table */}
@@ -297,10 +307,10 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 function SuccessRate({ completed, queued }: { completed: number; queued: number }) {
     if (queued === 0) return <span className="text-gray-500">—</span>;
-    
+
     const rate = Math.round((completed / queued) * 100);
     const color = rate >= 90 ? 'text-green-400' : rate >= 70 ? 'text-yellow-400' : 'text-red-400';
-    
+
     return (
         <span className={color}>{rate}%</span>
     );
@@ -310,6 +320,14 @@ function CloseIcon({ className }: { className?: string }) {
     return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+    return (
+        <svg className={`w-4 h-4 ${className || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
     );
 }
