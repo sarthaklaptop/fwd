@@ -1,3 +1,10 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 export function formatRelativeTime(date: Date | string): string {
   const now = new Date();
   const then = new Date(date);
@@ -7,7 +14,7 @@ export function formatRelativeTime(date: Date | string): string {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  
+
   return then.toLocaleDateString();
 }
 
@@ -27,13 +34,11 @@ export function getDateFilter(range: string): Date | null {
   }
 }
 
-
 export function formatDateISO(date: Date | string | null): string {
   if (!date) return '';
   const d = new Date(date);
   return d.toISOString().split('T')[0];
 }
-
 
 export function formatTimestampISO(date: Date | string | null): string {
   if (!date) return '';
