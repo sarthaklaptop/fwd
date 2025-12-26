@@ -112,7 +112,12 @@ export default function Home() {
         <div className="mx-auto max-w-5xl px-6 text-center">
           <div className="flex justify-center mb-8">
             <div className="animate-float">
-              <Mail className="w-16 h-16 text-primary" />
+              <img
+                src="/hero-mail.png"
+                alt="FWD Email"
+                className="w-20 h-20 md:w-24 md:h-24 drop-shadow-2xl"
+                style={{ filter: 'drop-shadow(0 20px 25px rgba(194, 65, 12, 0.25))' }}
+              />
             </div>
           </div>
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
