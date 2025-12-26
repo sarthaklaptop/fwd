@@ -12,9 +12,11 @@ import {
   Users,
   ShieldCheck,
   Terminal,
+  Copy,
+  Check,
 } from "lucide-react";
 import { FaNodeJs, FaPython } from "react-icons/fa";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Header, Footer } from "@/components/landing";
 
 const codeExamples = {
   curl: `curl -X POST https://api.fwd.email/v1/send \\
@@ -99,37 +101,11 @@ const features = [
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('curl');
+  const [copied, setCopied] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="text-2xl font-bold tracking-tight">
-              <span className="gradient-text">FWD</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Features
-              </Link>
-              <Link href="#api" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                API
-              </Link>
-              <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Login
-              </Link>
-              <ThemeToggle />
-              <Link
-                href="/auth/login"
-                className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Get Started
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="py-20 md:py-32">
@@ -168,7 +144,7 @@ export default function Home() {
       <section id="api" className="py-16 border-t border-border">
         <div className="mx-auto max-w-5xl px-6">
           <div className="text-center mb-12">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Email API</p>
+            <p className="font-label text-xs text-muted-foreground mb-2">Email API</p>
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
               Developer-first email infrastructure
             </h2>
@@ -205,7 +181,44 @@ export default function Home() {
             </div>
 
             {/* Code Content */}
-            <div className="code-block h-[400px] overflow-y-auto">
+            <div className="code-block h-[400px] overflow-y-auto relative">
+              {/* Copy Button */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(codeExamples[activeTab as keyof typeof codeExamples]);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="absolute top-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#cdd6f4] bg-[#313244] hover:bg-[#45475a] rounded-lg transition-colors overflow-hidden"
+              >
+                <AnimatePresence mode="wait">
+                  {copied ? (
+                    <motion.div
+                      key="copied"
+                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                      <span>Copied!</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="copy"
+                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
               <AnimatePresence mode="wait">
                 <motion.pre
                   key={activeTab}
@@ -229,7 +242,7 @@ export default function Home() {
       <section id="features" className="py-16 border-t border-border">
         <div className="mx-auto max-w-5xl px-6">
           <div className="text-center mb-12">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Features</p>
+            <p className="font-label text-xs text-muted-foreground mb-2">Features</p>
             <h2 className="text-2xl md:text-3xl font-bold">
               Everything you need to send emails at scale
             </h2>
@@ -270,31 +283,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold gradient-text">FWD</span>
-              <span className="text-sm text-muted-foreground">— Email for developers</span>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <Link href="/dashboard" className="hover:text-foreground transition-colors">
-                Dashboard
-              </Link>
-              <a
-                href="https://github.com/sarthaklaptop/fwd"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
-              >
-                GitHub
-              </a>
-              <span>© 2024 FWD</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
