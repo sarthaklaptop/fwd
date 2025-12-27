@@ -16,6 +16,7 @@
     "@aws-sdk/client-ses": "^3.956.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@tabler/icons-react": "^3.36.0",
     "@upstash/qstash": "^2.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
