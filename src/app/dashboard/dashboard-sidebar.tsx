@@ -96,11 +96,16 @@ export default function DashboardSidebar({
                                 <span className="text-primary-foreground font-bold text-lg">F</span>
                             </div>
                             <motion.span
+                                initial={false}
                                 animate={{
-                                    display: open ? 'inline-block' : 'none',
                                     opacity: open ? 1 : 0,
+                                    width: open ? 'auto' : 0,
                                 }}
-                                className="text-xl font-bold gradient-text whitespace-pre"
+                                transition={{
+                                    duration: 0.3,
+                                    ease: [0.4, 0, 0.2, 1],
+                                }}
+                                className="text-xl font-bold gradient-text whitespace-pre overflow-hidden"
                             >
                                 FWD
                             </motion.span>
@@ -174,11 +179,16 @@ export default function DashboardSidebar({
                         <div className="flex items-center gap-2 py-2">
                             <ThemeToggle />
                             <motion.span
+                                initial={false}
                                 animate={{
-                                    display: open ? 'inline-block' : 'none',
                                     opacity: open ? 1 : 0,
+                                    width: open ? 'auto' : 0,
                                 }}
-                                className="text-sm text-muted-foreground whitespace-pre"
+                                transition={{
+                                    duration: 0.3,
+                                    ease: [0.4, 0, 0.2, 1],
+                                }}
+                                className="text-sm text-muted-foreground whitespace-pre overflow-hidden"
                             >
                                 Theme
                             </motion.span>
@@ -189,11 +199,16 @@ export default function DashboardSidebar({
                         >
                             <LogOut className="h-5 w-5 shrink-0" />
                             <motion.span
+                                initial={false}
                                 animate={{
-                                    display: open ? 'inline-block' : 'none',
                                     opacity: open ? 1 : 0,
+                                    width: open ? 'auto' : 0,
                                 }}
-                                className="text-sm whitespace-pre"
+                                transition={{
+                                    duration: 0.3,
+                                    ease: [0.4, 0, 0.2, 1],
+                                }}
+                                className="text-sm whitespace-pre overflow-hidden"
                             >
                                 Logout
                             </motion.span>

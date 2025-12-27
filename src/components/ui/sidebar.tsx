@@ -94,6 +94,10 @@ export const DesktopSidebar = ({
         animate={{
           width: animate ? (open ? "300px" : "60px") : "300px",
         }}
+        transition={{
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1],
+        }}
         {...props}
       >
         {children}
@@ -162,25 +166,47 @@ export const SidebarLink = ({
 }) => {
   const { open, animate } = useSidebar();
   return (
-    <a
+    <motion.a
       href={link.href}
       className={cn(
-        "flex items-center justify-start gap-2  group/sidebar py-2",
+        "flex items-center justify-start gap-2 group/sidebar py-2 rounded-lg px-2 hover:bg-primary/10 transition-colors",
         className
       )}
+      whileHover="hover"
+      whileTap="tap"
+      initial="initial"
       {...props}
     >
-      {link.icon}
+      <motion.div
+        variants={{
+          initial: { scale: 1, rotate: 0 },
+          hover: { scale: 1.15, rotate: 8 },
+          tap: { scale: 0.9 },
+        }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      >
+        {link.icon}
+      </motion.div>
 
       <motion.span
+        initial={false}
         animate={{
-          display: animate ? (open ? "inline-block" : "none") : "inline-block",
           opacity: animate ? (open ? 1 : 0) : 1,
+          width: animate ? (open ? "auto" : 0) : "auto",
         }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+        transition={{
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1],
+        }}
+        variants={{
+          initial: { x: 0 },
+          hover: { x: 3 },
+          tap: { x: 0 },
+        }}
+        className="text-neutral-700 dark:text-neutral-200 text-sm whitespace-pre inline-block !p-0 !m-0 overflow-hidden"
       >
         {link.label}
       </motion.span>
-    </a>
+    </motion.a>
   );
 };
