@@ -50,37 +50,37 @@ export default function DashboardSidebar({
     const links = [
         {
             label: 'Dashboard',
-            href: '#',
+            href: '/dashboard',
             icon: <LayoutDashboard className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'Analytics',
-            href: '#analytics',
+            href: '/dashboard/analytics',
             icon: <BarChart3 className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'API Keys',
-            href: '#api-keys',
+            href: '/dashboard/api-keys',
             icon: <Key className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'Webhooks',
-            href: '#webhooks',
+            href: '/dashboard/webhooks',
             icon: <Webhook className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'Templates',
-            href: '#templates',
+            href: '/dashboard/templates',
             icon: <FileCode className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'Batches',
-            href: '#batches',
+            href: '/dashboard/batches',
             icon: <Send className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
         {
             label: 'Emails',
-            href: '#emails',
+            href: '/dashboard/emails',
             icon: <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />,
         },
     ];

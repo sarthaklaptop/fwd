@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX } from "@tabler/icons-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface Links {
   label: string;
@@ -165,11 +167,17 @@ export const SidebarLink = ({
   className?: string;
 }) => {
   const { open, animate } = useSidebar();
+  const pathname = usePathname();
+  const isActive = pathname === link.href;
+
+  const MotionLink = motion.create(Link);
+
   return (
-    <motion.a
+    <MotionLink
       href={link.href}
       className={cn(
-        "flex items-center justify-start gap-2 group/sidebar py-2 rounded-lg px-2 hover:bg-primary/10 transition-colors",
+        "flex items-center justify-start gap-2 group/sidebar py-2 rounded-lg px-2 transition-colors",
+        isActive ? "bg-primary/15 text-primary" : "hover:bg-primary/10",
         className
       )}
       whileHover="hover"
@@ -184,6 +192,7 @@ export const SidebarLink = ({
           tap: { scale: 0.9 },
         }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        className={isActive ? "text-primary" : ""}
       >
         {link.icon}
       </motion.div>
@@ -203,10 +212,13 @@ export const SidebarLink = ({
           hover: { x: 3 },
           tap: { x: 0 },
         }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm whitespace-pre inline-block !p-0 !m-0 overflow-hidden"
+        className={cn(
+          "text-sm whitespace-pre inline-block !p-0 !m-0 overflow-hidden",
+          isActive ? "text-primary font-medium" : "text-neutral-700 dark:text-neutral-200"
+        )}
       >
         {link.label}
       </motion.span>
-    </motion.a>
+    </MotionLink>
   );
 };
