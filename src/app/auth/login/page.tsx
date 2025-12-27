@@ -4,18 +4,17 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
@@ -24,9 +23,10 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to sign in');
       setLoading(false);
     } else {
+      toast.success('Welcome back!');
       router.push('/dashboard');
       router.refresh();
     }
@@ -82,12 +82,6 @@ export default function LoginPage() {
               required
             />
           </div>
-
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"

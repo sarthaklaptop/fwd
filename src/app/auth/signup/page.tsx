@@ -5,12 +5,12 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
@@ -18,7 +18,6 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -30,9 +29,12 @@ export default function SignupPage() {
     });
 
     if (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to create account');
       setLoading(false);
-    } else if (data.user) {
+      return;
+    }
+
+    if (data.user) {
       try {
         await fetch('/api/auth/create-user', {
           method: 'POST',
@@ -46,6 +48,8 @@ export default function SignupPage() {
       } catch (err) {
         console.error('Error creating user record:', err);
       }
+
+      toast.success('Account created!');
 
       if (data.user.identities?.length === 0) {
         setSuccess(true);
@@ -146,12 +150,6 @@ export default function SignupPage() {
               required
             />
           </div>
-
-          {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"
