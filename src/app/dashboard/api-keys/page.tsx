@@ -21,14 +21,14 @@ export default async function ApiKeysPage() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-foreground">API Keys</h1>
                 <p className="text-muted-foreground">Manage your API keys for authentication</p>
             </div>
 
-            <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-6">
-                <ApiKeysSection initialKeys={userApiKeys} />
-            </div>
+            {/* Content */}
+            <ApiKeysSection initialKeys={userApiKeys} />
         </div>
     );
 }
