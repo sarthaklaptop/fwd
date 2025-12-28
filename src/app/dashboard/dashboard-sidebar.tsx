@@ -51,37 +51,37 @@ export default function DashboardSidebar({
         {
             label: 'Dashboard',
             href: '/dashboard',
-            icon: <LayoutDashboard className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <LayoutDashboard className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'Analytics',
             href: '/dashboard/analytics',
-            icon: <BarChart3 className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <BarChart3 className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'API Keys',
             href: '/dashboard/api-keys',
-            icon: <Key className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <Key className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'Webhooks',
             href: '/dashboard/webhooks',
-            icon: <Webhook className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <Webhook className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'Templates',
             href: '/dashboard/templates',
-            icon: <FileCode className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <FileCode className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'Batches',
             href: '/dashboard/batches',
-            icon: <Send className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <Send className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
         {
             label: 'Emails',
             href: '/dashboard/emails',
-            icon: <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />,
+            icon: <Mail className="h-5 w-5 shrink-0 text-foreground/70" />,
         },
     ];
 
@@ -152,25 +152,36 @@ export default function DashboardSidebar({
                             <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
                                 Daily Usage
                             </span>
-                            <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full ${emailsToday >= dailyLimit ? 'bg-destructive' : 'bg-primary'
-                                            }`}
-                                        style={{
-                                            width: `${Math.min((emailsToday / dailyLimit) * 100, 100)}%`,
-                                        }}
-                                    />
-                                </div>
-                                <span
-                                    className={`text-xs font-mono font-medium ${emailsToday >= dailyLimit
-                                        ? 'text-destructive'
-                                        : 'text-foreground'
-                                        }`}
-                                >
-                                    {emailsToday}/{dailyLimit}
-                                </span>
-                            </div>
+                            {(() => {
+                                const usagePercent = (emailsToday / dailyLimit) * 100;
+                                const getBarColor = () => {
+                                    if (usagePercent >= 100) return 'bg-red-500';
+                                    if (usagePercent >= 80) return 'bg-orange-500';
+                                    if (usagePercent >= 50) return 'bg-yellow-500';
+                                    return 'bg-green-500';
+                                };
+                                const getTextColor = () => {
+                                    if (usagePercent >= 100) return 'text-red-500';
+                                    if (usagePercent >= 80) return 'text-orange-500';
+                                    if (usagePercent >= 50) return 'text-yellow-500';
+                                    return 'text-green-500';
+                                };
+                                return (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-300 ${getBarColor()}`}
+                                                style={{
+                                                    width: `${Math.min(usagePercent, 100)}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <span className={`text-xs font-mono font-medium ${getTextColor()}`}>
+                                            {emailsToday}/{dailyLimit}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                         </motion.div>
 
                         {/* Divider */}
