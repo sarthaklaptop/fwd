@@ -48,7 +48,7 @@ export default function AnalyticsSection() {
                 fetch(`/api/analytics/overview?range=${range}`),
                 fetch(`/api/analytics/timeline?range=${range}`),
             ]);
-            
+
             if (overviewRes.ok) {
                 setOverview(await overviewRes.json());
             }
@@ -63,76 +63,140 @@ export default function AnalyticsSection() {
 
     if (loading && !overview) {
         return (
-            <div className="animate-pulse">
-                <div className="h-8 bg-gray-700 rounded w-48 mb-4"></div>
-                <div className="h-64 bg-gray-700 rounded"></div>
+            <div className="animate-pulse space-y-4">
+                <div className="h-8 bg-secondary rounded w-48"></div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="h-32 bg-secondary rounded-xl"></div>
+                    <div className="h-32 bg-secondary rounded-xl"></div>
+                    <div className="h-32 bg-secondary rounded-xl"></div>
+                </div>
+                <div className="h-64 bg-secondary rounded-xl"></div>
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
-            {/* Header with Range Selector */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-bold text-white">Analytics</h2>
-                    <p className="text-gray-400 text-sm">Email performance overview</p>
-                </div>
-                <div className="flex gap-2">
-                    {['7d', '30d', '90d'].map((r) => (
-                        <button
-                            key={r}
-                            onClick={() => setRange(r)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                                range === r
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                        >
-                            {r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : '90 Days'}
-                        </button>
-                    ))}
-                </div>
+            {/* Range Selector */}
+            <div className="flex flex-wrap gap-2">
+                {['7d', '30d', '90d'].map((r) => (
+                    <button
+                        key={r}
+                        onClick={() => setRange(r)}
+                        disabled={loading}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all border ${range === r
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                            : 'bg-transparent text-foreground/70 border-border hover:bg-primary/10 hover:border-primary/30 hover:text-foreground'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : '90 Days'}
+                    </button>
+                ))}
+                {loading && (
+                    <div className="flex items-center gap-2 ml-2">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                )}
             </div>
 
             {/* Rate Cards */}
-            {overview && (
-                <div className="grid grid-cols-3 gap-4">
-                    <RateCard
-                        title="Delivery Rate"
-                        value={overview.deliveryRate}
-                        subtitle={`${overview.delivered} of ${overview.total} delivered`}
-                        color="green"
-                    />
-                    <RateCard
-                        title="Open Rate"
-                        value={overview.openRate}
-                        subtitle={`${overview.opened} of ${overview.delivered} opened`}
-                        color="cyan"
-                    />
-                    <RateCard
-                        title="Bounce Rate"
-                        value={overview.bounceRate}
-                        subtitle={`${overview.bounced} bounced`}
-                        color="red"
-                        inverted
-                    />
-                </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {loading ? (
+                    <>
+                        <SkeletonCard title="Delivery Rate" color="green" />
+                        <SkeletonCard title="Open Rate" color="blue" />
+                        <SkeletonCard title="Bounce Rate" color="red" />
+                    </>
+                ) : overview ? (
+                    <>
+                        <RateCard
+                            title="Delivery Rate"
+                            value={overview.deliveryRate}
+                            subtitle={`${overview.delivered} of ${overview.total} delivered`}
+                            color="green"
+                        />
+                        <RateCard
+                            title="Open Rate"
+                            value={overview.openRate}
+                            subtitle={`${overview.opened} of ${overview.delivered} opened`}
+                            color="blue"
+                        />
+                        <RateCard
+                            title="Bounce Rate"
+                            value={overview.bounceRate}
+                            subtitle={`${overview.bounced} bounced`}
+                            color="red"
+                            inverted
+                        />
+                    </>
+                ) : null}
+            </div>
 
             {/* Timeline Chart */}
-            {timeline && timeline.data.length > 0 && (
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="text-sm font-medium text-gray-400 mb-4">Email Volume</h3>
+            {loading ? (
+                <SkeletonChart />
+            ) : timeline && timeline.data.length > 0 ? (
+                <div className="bg-card rounded-xl p-5 border border-border shadow-sm">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Email Volume Over Time</h3>
                     <BarChart data={timeline.data} />
                 </div>
-            )}
-
-            {timeline && timeline.data.length === 0 && (
-                <div className="bg-gray-800/50 rounded-xl p-8 text-center">
-                    <p className="text-gray-400">No email data for this period</p>
+            ) : timeline && timeline.data.length === 0 ? (
+                <div className="bg-secondary/50 rounded-xl p-8 text-center border border-border">
+                    <p className="text-muted-foreground">No email data for this period</p>
                 </div>
-            )}
+            ) : null}
+        </div>
+    );
+}
+
+function SkeletonCard({ title, color }: { title: string; color: 'green' | 'blue' | 'red' }) {
+    const colors = {
+        green: { bg: 'from-green-500/10 to-green-600/5', border: 'border-green-500/20' },
+        blue: { bg: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/20' },
+        red: { bg: 'from-red-500/10 to-red-600/5', border: 'border-red-500/20' },
+    };
+    const style = colors[color];
+
+    return (
+        <div className={`bg-gradient-to-br ${style.bg} border ${style.border} rounded-xl p-5`}>
+            <p className="text-muted-foreground text-sm font-medium mb-2">{title}</p>
+            <div className="h-10 bg-secondary/70 rounded w-24 mb-2 animate-pulse"></div>
+            <div className="h-3 bg-secondary/50 rounded w-36 mb-4 animate-pulse"></div>
+            <div className="h-2 bg-secondary rounded-full w-full"></div>
+        </div>
+    );
+}
+
+function SkeletonChart() {
+    return (
+        <div className="bg-card rounded-xl p-5 border border-border shadow-sm">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Email Volume Over Time</h3>
+            {/* Legend - static */}
+            <div className="flex flex-wrap gap-6 text-sm mb-4">
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-sky-500 dark:bg-sky-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Sent</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Delivered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-violet-500 dark:bg-violet-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Opened</span>
+                </div>
+            </div>
+            {/* Chart skeleton - animated */}
+            <div className="flex items-end gap-2 h-40 animate-pulse">
+                {Array.from({ length: 7 }).map((_, i) => (
+                    <div key={i} className="flex gap-0.5 items-end flex-1">
+                        <div className="w-3 bg-secondary rounded-t" style={{ height: `${30 + (i * 8) % 50}%` }}></div>
+                        <div className="w-3 bg-secondary rounded-t" style={{ height: `${20 + (i * 5) % 40}%` }}></div>
+                        <div className="w-3 bg-secondary rounded-t" style={{ height: `${10 + (i * 3) % 30}%` }}></div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
@@ -147,13 +211,28 @@ function RateCard({
     title: string;
     value: number;
     subtitle: string;
-    color: 'green' | 'cyan' | 'red';
+    color: 'green' | 'blue' | 'red';
     inverted?: boolean;
 }) {
     const colors = {
-        green: { bg: 'from-green-500/20 to-green-600/10', text: 'text-green-400', bar: 'bg-green-500' },
-        cyan: { bg: 'from-cyan-500/20 to-cyan-600/10', text: 'text-cyan-400', bar: 'bg-cyan-500' },
-        red: { bg: 'from-red-500/20 to-red-600/10', text: 'text-red-400', bar: 'bg-red-500' },
+        green: {
+            bg: 'from-green-500/10 to-green-600/5',
+            text: 'text-green-500',
+            bar: 'bg-green-500',
+            border: 'border-green-500/20'
+        },
+        blue: {
+            bg: 'from-blue-500/10 to-blue-600/5',
+            text: 'text-blue-500',
+            bar: 'bg-blue-500',
+            border: 'border-blue-500/20'
+        },
+        red: {
+            bg: 'from-red-500/10 to-red-600/5',
+            text: 'text-red-500',
+            bar: 'bg-red-500',
+            border: 'border-red-500/20'
+        },
     };
     const style = colors[color];
 
@@ -161,13 +240,13 @@ function RateCard({
     const displayValue = inverted ? Math.max(0, 100 - value) : value;
 
     return (
-        <div className={`bg-gradient-to-br ${style.bg} border border-gray-700/50 rounded-xl p-4`}>
-            <p className="text-gray-400 text-sm mb-1">{title}</p>
-            <p className={`text-3xl font-bold ${style.text}`}>{value}%</p>
-            <p className="text-gray-500 text-xs mt-1">{subtitle}</p>
-            <div className="mt-3 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+        <div className={`bg-gradient-to-br ${style.bg} border ${style.border} rounded-xl p-5`}>
+            <p className="text-muted-foreground text-sm font-medium mb-2">{title}</p>
+            <p className={`text-4xl font-bold ${style.text}`}>{value}%</p>
+            <p className="text-muted-foreground/70 text-xs mt-2">{subtitle}</p>
+            <div className="mt-4 h-2 bg-secondary rounded-full overflow-hidden">
                 <div
-                    className={`h-full ${style.bar} transition-all duration-500`}
+                    className={`h-full ${style.bar} transition-all duration-500 rounded-full`}
                     style={{ width: `${Math.min(displayValue, 100)}%` }}
                 />
             </div>
@@ -177,35 +256,35 @@ function RateCard({
 
 function BarChart({ data }: { data: TimelineDataPoint[] }) {
     const maxValue = Math.max(...data.map(d => d.sent), 1);
-    
+
     // For small datasets, use a minimum width per bar
-    const barMinWidth = data.length < 10 ? '40px' : undefined;
+    const barMinWidth = data.length < 10 ? '48px' : undefined;
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-4">
             {/* Legend */}
-            <div className="flex gap-4 text-xs">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                    <span className="text-gray-400">Sent</span>
+            <div className="flex flex-wrap gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-sky-500 dark:bg-sky-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Sent</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div>
-                    <span className="text-gray-400">Delivered</span>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Delivered</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-cyan-500 rounded"></div>
-                    <span className="text-gray-400">Opened</span>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-violet-500 dark:bg-violet-400 rounded-sm"></div>
+                    <span className="text-foreground/70">Opened</span>
                 </div>
             </div>
-            
+
             {/* Chart */}
-            <div className="flex items-end gap-2 h-40 overflow-x-auto pb-2">
+            <div className="flex items-end gap-2 h-48 overflow-x-auto pb-4">
                 {data.map((point) => {
                     const sentHeight = Math.max((point.sent / maxValue) * 100, 5);
                     const deliveredHeight = Math.max((point.delivered / maxValue) * 100, 0);
                     const openedHeight = Math.max((point.opened / maxValue) * 100, 0);
-                    
+
                     return (
                         <div
                             key={point.date}
@@ -214,36 +293,35 @@ function BarChart({ data }: { data: TimelineDataPoint[] }) {
                         >
                             {/* Tooltip */}
                             <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
-                                <div className="bg-gray-900 border border-gray-700 rounded-lg p-2 text-xs whitespace-nowrap shadow-xl">
-                                    <p className="text-white font-medium mb-1">{formatDateLabel(point.date)}</p>
-                                    <p className="text-blue-400">Sent: {point.sent}</p>
-                                    <p className="text-green-400">Delivered: {point.delivered}</p>
-                                    <p className="text-cyan-400">Opened: {point.opened}</p>
-                                    {point.bounced > 0 && <p className="text-red-400">Bounced: {point.bounced}</p>}
+                                <div className="bg-popover border border-border rounded-lg p-3 text-sm whitespace-nowrap shadow-xl">
+                                    <p className="text-foreground font-semibold mb-2">{formatDateLabel(point.date)}</p>
+                                    <div className="space-y-1.5">
+                                        <p className="text-sky-500 dark:text-sky-400">Sent: {point.sent}</p>
+                                        <p className="text-emerald-500 dark:text-emerald-400">Delivered: {point.delivered}</p>
+                                        <p className="text-violet-500 dark:text-violet-400">Opened: {point.opened}</p>
+                                        {point.bounced > 0 && <p className="text-red-500 dark:text-red-400">Bounced: {point.bounced}</p>}
+                                    </div>
                                 </div>
                             </div>
-                            
+
                             {/* Bars side by side */}
-                            <div className="flex gap-0.5 items-end h-32">
+                            <div className="flex gap-0.5 items-end h-40">
                                 <div
-                                    className="w-3 bg-blue-500 rounded-t transition-all hover:bg-blue-400"
+                                    className="w-3 bg-sky-500 dark:bg-sky-400 rounded-t transition-all hover:opacity-80"
                                     style={{ height: `${sentHeight}%` }}
-                                    title={`Sent: ${point.sent}`}
                                 />
                                 <div
-                                    className="w-3 bg-green-500 rounded-t transition-all hover:bg-green-400"
+                                    className="w-3 bg-emerald-500 dark:bg-emerald-400 rounded-t transition-all hover:opacity-80"
                                     style={{ height: `${deliveredHeight}%` }}
-                                    title={`Delivered: ${point.delivered}`}
                                 />
                                 <div
-                                    className="w-3 bg-cyan-500 rounded-t transition-all hover:bg-cyan-400"
+                                    className="w-3 bg-violet-500 dark:bg-violet-400 rounded-t transition-all hover:opacity-80"
                                     style={{ height: `${openedHeight}%` }}
-                                    title={`Opened: ${point.opened}`}
                                 />
                             </div>
-                            
+
                             {/* Date label */}
-                            <span className="text-[10px] text-gray-500 mt-1 whitespace-nowrap">
+                            <span className="text-[11px] text-foreground/50 mt-2 whitespace-nowrap">
                                 {formatDateShort(point.date)}
                             </span>
                         </div>
@@ -255,16 +333,16 @@ function BarChart({ data }: { data: TimelineDataPoint[] }) {
 }
 
 function formatDateLabel(date: string): string {
-    return new Date(date).toLocaleDateString('en-US', { 
-        month: 'short', 
+    return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
         day: 'numeric',
         year: 'numeric'
     });
 }
 
 function formatDateShort(date: string): string {
-    return new Date(date).toLocaleDateString('en-US', { 
-        month: 'short', 
+    return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
         day: 'numeric'
     });
 }
