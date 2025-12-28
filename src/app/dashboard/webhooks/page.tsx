@@ -19,14 +19,14 @@ export default async function WebhooksPage() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-foreground">Webhooks</h1>
                 <p className="text-muted-foreground">Configure webhook endpoints for real-time notifications</p>
             </div>
 
-            <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-6">
-                <WebhooksSection initialWebhooks={parsedWebhooks} />
-            </div>
+            {/* Content */}
+            <WebhooksSection initialWebhooks={parsedWebhooks} />
         </div>
     );
 }
