@@ -14,14 +14,14 @@ export default async function TemplatesPage() {
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-foreground">Templates</h1>
                 <p className="text-muted-foreground">Create and manage reusable email templates</p>
             </div>
 
-            <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-6">
-                <TemplatesSection initialTemplates={userTemplates} />
-            </div>
+            {/* Content */}
+            <TemplatesSection initialTemplates={userTemplates} />
         </div>
     );
 }
