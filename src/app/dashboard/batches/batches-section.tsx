@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatRelativeTime } from '@/lib/utils';
+import { Package, RefreshCw, X, Check, Minus } from 'lucide-react';
 
 interface Batch {
     id: string;
@@ -35,6 +36,7 @@ export default function BatchesSection() {
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedBatch, setSelectedBatch] = useState<BatchDetail | null>(null);
+    const [pendingBatchId, setPendingBatchId] = useState<string | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
 
     useEffect(() => {
@@ -55,10 +57,11 @@ export default function BatchesSection() {
         setLoading(false);
     }
 
-    async function fetchBatchDetail(id: string) {
+    async function fetchBatchDetail(batch: Batch) {
+        setPendingBatchId(batch.id);
         setDetailLoading(true);
         try {
-            const res = await fetch(`/api/batches/${id}`);
+            const res = await fetch(`/api/batches/${batch.id}`);
             if (res.ok) {
                 const data = await res.json();
                 setSelectedBatch({ ...data.batch, emails: data.emails });
@@ -69,64 +72,74 @@ export default function BatchesSection() {
         setDetailLoading(false);
     }
 
+    function closeModal() {
+        setSelectedBatch(null);
+        setPendingBatchId(null);
+    }
+
+    // Get the batch info for showing in modal header while loading
+    const pendingBatch = pendingBatchId ? batches.find(b => b.id === pendingBatchId) : null;
+
     return (
-        <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-bold text-white">Batch Sends</h2>
-                    <p className="text-gray-400 text-sm">Manage your bulk email campaigns</p>
-                </div>
+        <div className="space-y-6">
+            {/* Header with Refresh Button */}
+            <div className="flex justify-end">
                 <button
                     onClick={() => fetchBatches()}
                     disabled={loading}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-primary/10 text-foreground text-sm font-medium rounded-lg border border-border hover:border-primary/30 transition-colors disabled:opacity-50"
                     title="Refresh"
                 >
-                    <RefreshIcon className={loading ? 'animate-spin' : ''} />
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
                 </button>
             </div>
 
             {/* Table */}
-            {loading ? (
-                <div className="animate-pulse space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                        <div key={i} className="h-14 bg-gray-700/50 rounded"></div>
-                    ))}
-                </div>
-            ) : batches.length === 0 ? (
-                <div className="text-center py-12">
-                    <div className="text-4xl mb-4">📦</div>
-                    <p className="text-gray-400">No batch sends yet</p>
-                    <p className="text-gray-500 text-sm mt-2">
-                        Use the API to send batch emails
-                    </p>
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                <th className="px-4 py-3">Template</th>
-                                <th className="px-4 py-3">Recipients</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3">Success Rate</th>
-                                <th className="px-4 py-3">Date</th>
+            <div className="overflow-x-auto border border-border rounded-xl">
+                <table className="w-full">
+                    <thead>
+                        <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-secondary/30">
+                            <th className="px-4 py-3">Template</th>
+                            <th className="px-4 py-3">Recipients</th>
+                            <th className="px-4 py-3">Status</th>
+                            <th className="px-4 py-3">Success Rate</th>
+                            <th className="px-4 py-3">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                        {loading ? (
+                            // Skeleton rows
+                            [...Array(5)].map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    <td className="px-4 py-3"><div className="h-4 bg-secondary rounded w-24"></div></td>
+                                    <td className="px-4 py-3"><div className="h-4 bg-secondary rounded w-16"></div></td>
+                                    <td className="px-4 py-3"><div className="h-6 bg-secondary rounded-full w-20"></div></td>
+                                    <td className="px-4 py-3"><div className="h-4 bg-secondary rounded w-12"></div></td>
+                                    <td className="px-4 py-3"><div className="h-4 bg-secondary rounded w-20"></div></td>
+                                </tr>
+                            ))
+                        ) : batches.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-12 text-center">
+                                    <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                                    <p className="text-foreground font-medium">No batch sends yet</p>
+                                    <p className="text-muted-foreground text-sm mt-1">Use the API to send batch emails</p>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-700/50">
-                            {batches.map((batch) => (
+                        ) : (
+                            batches.map((batch) => (
                                 <tr
                                     key={batch.id}
-                                    onClick={() => fetchBatchDetail(batch.id)}
-                                    className="hover:bg-gray-700/30 transition-colors cursor-pointer"
+                                    onClick={() => fetchBatchDetail(batch)}
+                                    className="hover:bg-secondary/30 transition-colors cursor-pointer"
                                 >
-                                    <td className="px-4 py-3 text-sm text-white font-medium">
+                                    <td className="px-4 py-3 text-sm text-foreground font-medium">
                                         {batch.templateName || 'Direct Send'}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-gray-300">
+                                    <td className="px-4 py-3 text-sm text-foreground">
                                         <span className="font-medium">{batch.queued}</span>
-                                        <span className="text-gray-500"> / {batch.total}</span>
+                                        <span className="text-muted-foreground"> / {batch.total}</span>
                                     </td>
                                     <td className="px-4 py-3">
                                         <StatusBadge status={batch.status} />
@@ -134,22 +147,23 @@ export default function BatchesSection() {
                                     <td className="px-4 py-3 text-sm">
                                         <SuccessRate completed={batch.completed} queued={batch.queued} />
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-gray-400" suppressHydrationWarning>
+                                    <td className="px-4 py-3 text-sm text-muted-foreground" suppressHydrationWarning>
                                         {formatRelativeTime(batch.createdAt)}
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
             {/* Batch Detail Modal */}
-            {selectedBatch && (
+            {(selectedBatch || pendingBatchId) && (
                 <BatchDetailModal
                     batch={selectedBatch}
+                    pendingBatch={pendingBatch}
                     loading={detailLoading}
-                    onClose={() => setSelectedBatch(null)}
+                    onClose={closeModal}
                 />
             )}
         </div>
@@ -158,38 +172,81 @@ export default function BatchesSection() {
 
 function BatchDetailModal({
     batch,
+    pendingBatch,
     loading,
     onClose,
 }: {
-    batch: BatchDetail;
+    batch: BatchDetail | null;
+    pendingBatch: Batch | null | undefined;
     loading: boolean;
     onClose: () => void;
 }) {
+    // Use actual batch data if available, otherwise use pending batch info for header
+    const displayBatch = batch || pendingBatch;
+
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-700">
-                    <div>
-                        <h3 className="text-lg font-semibold text-white">Batch Details</h3>
-                        <p className="text-gray-400 text-sm">
-                            {batch.templateName || 'Direct Send'} • {batch.queued} emails
-                        </p>
+                <div className="flex items-center justify-between p-4 border-b border-border">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            <Package className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Batch Details</h3>
+                            {displayBatch ? (
+                                <p className="text-muted-foreground text-sm">
+                                    {displayBatch.templateName || 'Direct Send'} • {displayBatch.queued} emails
+                                </p>
+                            ) : (
+                                <div className="h-4 bg-secondary rounded w-32 animate-pulse"></div>
+                            )}
+                        </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                        className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
                     >
-                        <CloseIcon className="w-5 h-5 text-gray-400" />
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="p-4 overflow-y-auto max-h-[calc(85vh-80px)] space-y-6">
-                    {loading ? (
-                        <div className="animate-pulse space-y-4">
-                            <div className="h-20 bg-gray-700 rounded"></div>
-                            <div className="h-40 bg-gray-700 rounded"></div>
+                    {loading || !batch ? (
+                        <div className="animate-pulse space-y-6">
+                            {/* Stats skeleton */}
+                            <div className="grid grid-cols-4 gap-3">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className="border border-border rounded-lg p-3">
+                                        <div className="h-3 bg-secondary rounded w-12 mb-2"></div>
+                                        <div className="h-6 bg-secondary rounded w-8"></div>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Table skeleton */}
+                            <div>
+                                <div className="h-4 bg-secondary rounded w-24 mb-3"></div>
+                                <div className="border border-border rounded-xl overflow-hidden">
+                                    <div className="bg-secondary/30 px-4 py-2 border-b border-border">
+                                        <div className="flex gap-8">
+                                            <div className="h-3 bg-secondary rounded w-16"></div>
+                                            <div className="h-3 bg-secondary rounded w-12"></div>
+                                            <div className="h-3 bg-secondary rounded w-12"></div>
+                                        </div>
+                                    </div>
+                                    {[...Array(5)].map((_, i) => (
+                                        <div key={i} className="px-4 py-3 border-b border-border last:border-0">
+                                            <div className="flex gap-8">
+                                                <div className="h-4 bg-secondary rounded w-32"></div>
+                                                <div className="h-4 bg-secondary rounded w-16"></div>
+                                                <div className="h-4 bg-secondary rounded w-4"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -205,12 +262,12 @@ function BatchDetailModal({
                             {(batch.suppressed > 0 || batch.duplicates > 0) && (
                                 <div className="flex gap-4 text-sm">
                                     {batch.suppressed > 0 && (
-                                        <span className="text-yellow-400">
+                                        <span className="text-yellow-500 dark:text-yellow-400">
                                             {batch.suppressed} suppressed
                                         </span>
                                     )}
                                     {batch.duplicates > 0 && (
-                                        <span className="text-orange-400">
+                                        <span className="text-orange-500 dark:text-orange-400">
                                             {batch.duplicates} duplicates
                                         </span>
                                     )}
@@ -219,27 +276,31 @@ function BatchDetailModal({
 
                             {/* Emails Table */}
                             <div>
-                                <h4 className="text-sm font-medium text-gray-400 mb-3">
+                                <h4 className="text-sm font-medium text-foreground mb-3">
                                     Emails ({batch.emails?.length || 0})
                                 </h4>
-                                <div className="bg-gray-900/50 rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                                <div className="rounded-xl overflow-hidden max-h-64 overflow-y-auto border border-border">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-gray-900 sticky top-0">
-                                            <tr className="text-left text-xs text-gray-500 uppercase">
-                                                <th className="px-3 py-2">Recipient</th>
-                                                <th className="px-3 py-2">Status</th>
-                                                <th className="px-3 py-2">Opened</th>
+                                        <thead className="bg-secondary/30 sticky top-0 border-b border-border">
+                                            <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
+                                                <th className="px-4 py-2">Recipient</th>
+                                                <th className="px-4 py-2">Status</th>
+                                                <th className="px-4 py-2">Opened</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-800">
+                                        <tbody className="divide-y divide-border">
                                             {batch.emails?.map((email) => (
-                                                <tr key={email.id}>
-                                                    <td className="px-3 py-2 text-white">{email.to}</td>
-                                                    <td className="px-3 py-2">
+                                                <tr key={email.id} className="hover:bg-primary/5 transition-colors">
+                                                    <td className="px-4 py-2.5 text-foreground">{email.to}</td>
+                                                    <td className="px-4 py-2.5">
                                                         <EmailStatusBadge status={email.status} />
                                                     </td>
-                                                    <td className="px-3 py-2 text-gray-400">
-                                                        {email.openedAt ? '✓' : '—'}
+                                                    <td className="px-4 py-2.5">
+                                                        {email.openedAt ? (
+                                                            <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
+                                                        ) : (
+                                                            <Minus className="w-4 h-4 text-muted-foreground" />
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -257,10 +318,10 @@ function BatchDetailModal({
 
 function StatusBadge({ status }: { status: string }) {
     const styles: Record<string, { bg: string; text: string }> = {
-        processing: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
-        completed: { bg: 'bg-green-500/10', text: 'text-green-400' },
-        partial: { bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
-        failed: { bg: 'bg-red-500/10', text: 'text-red-400' },
+        processing: { bg: 'bg-blue-500/10', text: 'text-blue-500 dark:text-blue-400' },
+        completed: { bg: 'bg-green-500/10', text: 'text-green-500 dark:text-green-400' },
+        partial: { bg: 'bg-yellow-500/10', text: 'text-yellow-500 dark:text-yellow-400' },
+        failed: { bg: 'bg-red-500/10', text: 'text-red-500 dark:text-red-400' },
     };
 
     const style = styles[status] || styles.processing;
@@ -274,15 +335,15 @@ function StatusBadge({ status }: { status: string }) {
 
 function EmailStatusBadge({ status }: { status: string }) {
     const colors: Record<string, string> = {
-        pending: 'text-yellow-400',
-        processing: 'text-blue-400',
-        completed: 'text-green-400',
-        failed: 'text-red-400',
-        bounced: 'text-orange-400',
+        pending: 'text-yellow-500 dark:text-yellow-400',
+        processing: 'text-blue-500 dark:text-blue-400',
+        completed: 'text-green-500 dark:text-green-400',
+        failed: 'text-red-500 dark:text-red-400',
+        bounced: 'text-orange-500 dark:text-orange-400',
     };
 
     return (
-        <span className={`text-xs ${colors[status] || 'text-gray-400'}`}>
+        <span className={`text-xs font-medium ${colors[status] || 'text-muted-foreground'}`}>
             {status}
         </span>
     );
@@ -290,15 +351,15 @@ function EmailStatusBadge({ status }: { status: string }) {
 
 function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
     const textColors: Record<string, string> = {
-        blue: 'text-blue-400',
-        green: 'text-green-400',
-        red: 'text-red-400',
+        blue: 'text-blue-500 dark:text-blue-400',
+        green: 'text-green-500 dark:text-green-400',
+        red: 'text-red-500 dark:text-red-400',
     };
 
     return (
-        <div className="bg-gray-900/50 rounded-lg p-3">
-            <p className="text-gray-500 text-xs mb-1">{label}</p>
-            <p className={`text-xl font-bold ${color ? textColors[color] : 'text-white'}`}>
+        <div className="bg-transparent rounded-lg p-3 border border-border">
+            <p className="text-muted-foreground text-xs mb-1">{label}</p>
+            <p className={`text-xl font-bold ${color ? textColors[color] : 'text-foreground'}`}>
                 {value}
             </p>
         </div>
@@ -306,28 +367,12 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 }
 
 function SuccessRate({ completed, queued }: { completed: number; queued: number }) {
-    if (queued === 0) return <span className="text-gray-500">—</span>;
+    if (queued === 0) return <span className="text-muted-foreground">—</span>;
 
     const rate = Math.round((completed / queued) * 100);
-    const color = rate >= 90 ? 'text-green-400' : rate >= 70 ? 'text-yellow-400' : 'text-red-400';
+    const color = rate >= 90 ? 'text-green-500 dark:text-green-400' : rate >= 70 ? 'text-yellow-500 dark:text-yellow-400' : 'text-red-500 dark:text-red-400';
 
     return (
-        <span className={color}>{rate}%</span>
-    );
-}
-
-function CloseIcon({ className }: { className?: string }) {
-    return (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-    );
-}
-
-function RefreshIcon({ className }: { className?: string }) {
-    return (
-        <svg className={`w-4 h-4 ${className || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
+        <span className={`font-medium ${color}`}>{rate}%</span>
     );
 }
