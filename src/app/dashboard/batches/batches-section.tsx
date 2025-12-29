@@ -24,9 +24,9 @@ export default function BatchesSection() {
     setLoading(true);
     try {
       const res = await fetch('/api/batches?limit=20');
-      if (res.ok) {
-        const data = await res.json();
-        setBatches(data.batches);
+      const response = await res.json();
+      if (response.success) {
+        setBatches(response.data.batches);
       }
     } catch (error) {
       console.error('Failed to fetch batches:', error);
@@ -39,11 +39,11 @@ export default function BatchesSection() {
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/batches/${batch.id}`);
-      if (res.ok) {
-        const data = await res.json();
+      const response = await res.json();
+      if (response.success) {
         setSelectedBatch({
-          ...data.batch,
-          emails: data.emails,
+          ...response.data.batch,
+          emails: response.data.emails,
         });
       }
     } catch (error) {

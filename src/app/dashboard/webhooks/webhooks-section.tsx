@@ -49,15 +49,15 @@ export default function WebhooksSection({
       body: JSON.stringify({ url, events }),
     });
 
-    const data = await res.json();
+    const response = await res.json();
     setLoading(false);
 
-    if (res.ok) {
-      setWebhooks([data.webhook, ...webhooks]);
-      toast.success('Webhook created successfully!');
+    if (response.success) {
+      setWebhooks([response.data.webhook, ...webhooks]);
+      toast.success(response.message);
       closeModal();
     } else {
-      toast.error(data.error || 'Failed to create webhook');
+      toast.error(response.message);
     }
   };
 
@@ -68,13 +68,14 @@ export default function WebhooksSection({
       `/api/webhooks/${deleteTarget.id}`,
       { method: 'DELETE' }
     );
-    if (res.ok) {
+    const response = await res.json();
+    if (response.success) {
       setWebhooks(
         webhooks.filter((w) => w.id !== deleteTarget.id)
       );
-      toast.success('Webhook deleted');
+      toast.success(response.message);
     } else {
-      toast.error('Failed to delete webhook');
+      toast.error(response.message);
     }
     setDeleteTarget(null);
   };
@@ -90,15 +91,13 @@ export default function WebhooksSection({
       body: JSON.stringify({ webhookId, eventType }),
     });
 
-    const data = await res.json();
+    const response = await res.json();
     setLoading(false);
 
-    if (res.ok) {
-      toast.success(
-        `Test event sent! Status: ${data.status}`
-      );
+    if (response.success) {
+      toast.success(response.message);
     } else {
-      toast.error(data.error || 'Test failed');
+      toast.error(response.message);
     }
   };
 
@@ -109,9 +108,9 @@ export default function WebhooksSection({
       const res = await fetch(
         `/api/webhooks/${webhook.id}/events`
       );
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.events);
+      const response = await res.json();
+      if (response.success) {
+        setLogs(response.data.events);
       }
     } catch (error) {
       console.error('Failed to fetch logs:', error);

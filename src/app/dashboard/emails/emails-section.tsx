@@ -71,15 +71,18 @@ export default function EmailsSection() {
         params.set('limit', '20');
 
         const res = await fetch(`/api/emails?${params}`);
-        if (res.ok) {
-          const data = await res.json();
+        const response = await res.json();
+        if (response.success) {
           if (cursor) {
-            setEmails((prev) => [...prev, ...data.emails]);
+            setEmails((prev) => [
+              ...prev,
+              ...response.data.emails,
+            ]);
           } else {
-            setEmails(data.emails);
+            setEmails(response.data.emails);
           }
-          setNextCursor(data.nextCursor);
-          setHasMore(data.hasMore);
+          setNextCursor(response.data.nextCursor);
+          setHasMore(response.data.hasMore);
         }
       } catch (error) {
         console.error('Failed to fetch emails:', error);
@@ -100,9 +103,9 @@ export default function EmailsSection() {
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/emails/${email.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedEmail(data.email);
+      const response = await res.json();
+      if (response.success) {
+        setSelectedEmail(response.data.email);
       }
     } catch (error) {
       console.error('Failed to fetch email detail:', error);

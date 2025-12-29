@@ -32,11 +32,14 @@ export default function AnalyticsSection() {
         fetch(`/api/analytics/timeline?range=${range}`),
       ]);
 
-      if (overviewRes.ok) {
-        setOverview(await overviewRes.json());
+      const overviewResponse = await overviewRes.json();
+      const timelineResponse = await timelineRes.json();
+
+      if (overviewResponse.success) {
+        setOverview(overviewResponse.data);
       }
-      if (timelineRes.ok) {
-        setTimeline(await timelineRes.json());
+      if (timelineResponse.success) {
+        setTimeline(timelineResponse.data);
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);

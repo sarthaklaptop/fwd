@@ -32,20 +32,24 @@ export default function ApiKeysSection({
       body: JSON.stringify({ name: newKeyName }),
     });
 
-    const data = await res.json();
+    const response = await res.json();
     setLoading(false);
 
-    if (res.ok) {
-      setNewKey(data.key);
+    if (response.success) {
+      setNewKey(response.data.key);
       setShowModal(true);
       setKeys([
-        { ...data, lastUsedAt: null, revokedAt: null },
+        {
+          ...response.data,
+          lastUsedAt: null,
+          revokedAt: null,
+        },
         ...keys,
       ]);
       setNewKeyName('');
-      toast.success('API key created successfully!');
+      toast.success(response.message);
     } else {
-      toast.error('Failed to create key');
+      toast.error(response.message);
     }
   };
 
@@ -58,7 +62,8 @@ export default function ApiKeysSection({
         method: 'DELETE',
       }
     );
-    if (res.ok) {
+    const response = await res.json();
+    if (response.success) {
       setKeys(
         keys.map((k) =>
           k.id === revokeTarget.id
@@ -66,9 +71,9 @@ export default function ApiKeysSection({
             : k
         )
       );
-      toast.success('API key revoked');
+      toast.success(response.message);
     } else {
-      toast.error('Failed to revoke key');
+      toast.error(response.message);
     }
     setRevokeTarget(null);
   };

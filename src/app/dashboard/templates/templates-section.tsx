@@ -59,24 +59,28 @@ export default function TemplatesSection({
       body: JSON.stringify({ name, subject, html }),
     });
 
-    const data = await res.json();
+    const response = await res.json();
     setLoading(false);
 
-    if (res.ok) {
+    if (response.success) {
       if (editingTemplate) {
         setTemplates(
           templates.map((t) =>
-            t.id === editingTemplate.id ? data.template : t
+            t.id === editingTemplate.id
+              ? response.data.template
+              : t
           )
         );
-        toast.success('Template updated successfully!');
       } else {
-        setTemplates([data.template, ...templates]);
-        toast.success('Template created successfully!');
+        setTemplates([
+          response.data.template,
+          ...templates,
+        ]);
       }
+      toast.success(response.message);
       closeModal();
     } else {
-      toast.error(data.error || 'Failed to save template');
+      toast.error(response.message);
     }
   };
 
@@ -87,13 +91,14 @@ export default function TemplatesSection({
       `/api/templates/${deleteTarget.id}`,
       { method: 'DELETE' }
     );
-    if (res.ok) {
+    const response = await res.json();
+    if (response.success) {
       setTemplates(
         templates.filter((t) => t.id !== deleteTarget.id)
       );
-      toast.success('Template deleted');
+      toast.success(response.message);
     } else {
-      toast.error('Failed to delete template');
+      toast.error(response.message);
     }
     setDeleteTarget(null);
   };
