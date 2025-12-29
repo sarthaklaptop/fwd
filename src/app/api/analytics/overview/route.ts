@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
 import { emails } from '@/db/schema';
 import { eq, and, gte, count, sql } from 'drizzle-orm';
-import { getDateFilter } from '@/lib/utils';
+import { getDateFilter, DateRange } from '@/lib/utils';
 
 
 export async function GET(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const range = searchParams.get('range') || '30d';
+    const range = (searchParams.get('range') || '30d') as DateRange;
 
     // Calculate date filter
     const dateFilter = getDateFilter(range);
