@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
 import { emails } from '@/db/schema';
@@ -8,6 +8,8 @@ import {
   formatDateISO,
   DateRange,
 } from '@/lib/utils';
+import { ApiResponse } from '@/lib/api-response';
+import { ApiError } from '@/lib/api-error';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -16,10 +18,10 @@ export async function GET(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+    return new ApiError(
+      401,
+      'Please log in to view analytics'
+    ).send();
   }
 
   const { searchParams } = new URL(req.url);
@@ -33,7 +35,6 @@ export async function GET(req: NextRequest) {
       ? sql`DATE_TRUNC('week', ${emails.createdAt})`
       : sql`DATE(${emails.createdAt})`;
 
-  // Build where conditions (dateFilter is always defined for timeline since 'all' is not allowed)
   const whereConditions = dateFilter
     ? and(
         eq(emails.userId, user.id),
@@ -64,9 +65,13 @@ export async function GET(req: NextRequest) {
     failed: row.failed,
   }));
 
-  return NextResponse.json({
-    data: formattedData,
-    range,
-    groupBy,
-  });
+  return new ApiResponse(
+    200,
+    {
+      data: formattedData,
+      range,
+      groupBy,
+    },
+    'Timeline data loaded'
+  ).send();
 }
