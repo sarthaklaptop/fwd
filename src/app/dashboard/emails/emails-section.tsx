@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatRelativeTime } from '@/lib/utils';
-import { Mail, RefreshCw, Download, Search, X } from 'lucide-react';
+import { Mail, RefreshCw, Download, Search, X, ChevronDown, Check } from 'lucide-react';
 
 interface Email {
     id: string;
@@ -39,6 +39,7 @@ export default function EmailsSection() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [selectedEmail, setSelectedEmail] = useState<EmailDetail | null>(null);
+    const [pendingEmailId, setPendingEmailId] = useState<string | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
 
     useEffect(() => {
@@ -84,10 +85,11 @@ export default function EmailsSection() {
     }, [fetchEmails]);
 
     // Fetch email detail
-    async function fetchEmailDetail(id: string) {
+    async function fetchEmailDetail(email: Email) {
+        setPendingEmailId(email.id);
         setDetailLoading(true);
         try {
-            const res = await fetch(`/api/emails/${id}`);
+            const res = await fetch(`/api/emails/${email.id}`);
             if (res.ok) {
                 const data = await res.json();
                 setSelectedEmail(data.email);
@@ -97,6 +99,14 @@ export default function EmailsSection() {
         }
         setDetailLoading(false);
     }
+
+    function closeModal() {
+        setSelectedEmail(null);
+        setPendingEmailId(null);
+    }
+
+    // Get the email info for showing in modal header while loading
+    const pendingEmail = pendingEmailId ? emails.find(e => e.id === pendingEmailId) : null;
 
     // Export CSV
     async function handleExport() {
@@ -164,19 +174,7 @@ export default function EmailsSection() {
                         className="w-full pl-10 pr-4 py-2 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
                     />
                 </div>
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 bg-transparent border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
-                >
-                    <option value="">All Status</option>
-                    <option value="completed">Delivered</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="failed">Failed</option>
-                    <option value="bounced">Bounced</option>
-                    <option value="complained">Complained</option>
-                </select>
+                <StatusFilterDropdown value={statusFilter} onChange={setStatusFilter} />
             </div>
 
             {/* Table */}
@@ -219,7 +217,7 @@ export default function EmailsSection() {
                             emails.map((email) => (
                                 <tr
                                     key={email.id}
-                                    onClick={() => fetchEmailDetail(email.id)}
+                                    onClick={() => fetchEmailDetail(email)}
                                     className="hover:bg-secondary/30 transition-colors cursor-pointer"
                                 >
                                     <td className="px-4 py-3 text-sm text-foreground font-medium">{email.to}</td>
@@ -261,11 +259,12 @@ export default function EmailsSection() {
             )}
 
             {/* Email Detail Modal */}
-            {selectedEmail && (
+            {(selectedEmail || pendingEmailId) && (
                 <EmailDetailModal
                     email={selectedEmail}
+                    pendingEmail={pendingEmail}
                     loading={detailLoading}
-                    onClose={() => setSelectedEmail(null)}
+                    onClose={closeModal}
                 />
             )}
         </div>
@@ -274,15 +273,20 @@ export default function EmailsSection() {
 
 function EmailDetailModal({
     email,
+    pendingEmail,
     loading,
     onClose,
 }: {
-    email: EmailDetail;
+    email: EmailDetail | null;
+    pendingEmail: Email | null | undefined;
     loading: boolean;
     onClose: () => void;
 }) {
+    // Use actual email data if available, otherwise use pending email info for header
+    const displayEmail = email || pendingEmail;
+
     return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border">
@@ -290,7 +294,16 @@ function EmailDetailModal({
                         <div className="p-2 bg-primary/10 rounded-lg">
                             <Mail className="w-5 h-5 text-primary" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Email Details</h3>
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Email Details</h3>
+                            {displayEmail ? (
+                                <p className="text-muted-foreground text-sm truncate max-w-md">
+                                    To: {displayEmail.to}
+                                </p>
+                            ) : (
+                                <div className="h-4 bg-secondary rounded w-32 animate-pulse"></div>
+                            )}
+                        </div>
                     </div>
                     <button
                         onClick={onClose}
@@ -302,11 +315,27 @@ function EmailDetailModal({
 
                 {/* Content */}
                 <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)] space-y-4">
-                    {loading ? (
-                        <div className="animate-pulse space-y-4">
-                            <div className="h-4 bg-secondary rounded w-1/2"></div>
-                            <div className="h-4 bg-secondary rounded w-3/4"></div>
-                            <div className="h-32 bg-secondary rounded"></div>
+                    {loading || !email ? (
+                        <div className="animate-pulse space-y-6">
+                            {/* Metadata skeleton */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i}>
+                                        <div className="h-3 bg-secondary rounded w-12 mb-2"></div>
+                                        <div className="h-4 bg-secondary rounded w-32"></div>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Subject skeleton */}
+                            <div>
+                                <div className="h-3 bg-secondary rounded w-16 mb-2"></div>
+                                <div className="h-5 bg-secondary rounded w-3/4"></div>
+                            </div>
+                            {/* Content skeleton */}
+                            <div>
+                                <div className="h-3 bg-secondary rounded w-24 mb-2"></div>
+                                <div className="h-48 bg-secondary rounded"></div>
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -409,3 +438,66 @@ function StatusBadge({ status }: { status: string }) {
         </span>
     );
 }
+
+const STATUS_OPTIONS = [
+    { value: '', label: 'All Status' },
+    { value: 'completed', label: 'Delivered' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'bounced', label: 'Bounced' },
+    { value: 'complained', label: 'Complained' },
+];
+
+function StatusFilterDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectedOption = STATUS_OPTIONS.find(opt => opt.value === value) || STATUS_OPTIONS[0];
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="inline-flex items-center justify-between gap-2 px-4 py-2 min-w-[140px] bg-transparent border border-border rounded-lg text-foreground text-sm hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+            >
+                <span>{selectedOption.label}</span>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute right-0 mt-1 w-full min-w-[160px] bg-card border border-border rounded-lg shadow-xl z-50 py-1 animate-fade-in">
+                    {STATUS_OPTIONS.map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => {
+                                onChange(option.value);
+                                setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${value === option.value
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-foreground hover:bg-secondary/50'
+                                }`}
+                        >
+                            <span>{option.label}</span>
+                            {value === option.value && <Check className="w-4 h-4" />}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+

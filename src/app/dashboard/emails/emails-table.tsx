@@ -1,6 +1,7 @@
 'use client';
 
 import { formatRelativeTime } from '@/lib/utils';
+import { Mail } from 'lucide-react';
 
 interface Email {
   id: string;
@@ -14,19 +15,19 @@ interface Email {
 export default function EmailsTable({ emails }: { emails: Email[] }) {
   if (emails.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-4xl mb-4">📭</div>
-        <p className="text-gray-400">No emails sent yet</p>
-        <p className="text-gray-500 text-sm">Create an API key and start sending!</p>
+      <div className="text-center py-12 border border-border rounded-xl bg-card/50">
+        <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+        <p className="text-foreground font-medium">No emails sent yet</p>
+        <p className="text-muted-foreground text-sm mt-1">Create an API key and start sending!</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto border border-border rounded-xl">
       <table className="w-full">
         <thead>
-          <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+          <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-secondary/30">
             <th className="px-4 py-3">To</th>
             <th className="px-4 py-3">Subject</th>
             <th className="px-4 py-3">Status</th>
@@ -34,18 +35,18 @@ export default function EmailsTable({ emails }: { emails: Email[] }) {
             <th className="px-4 py-3">Time</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-700/50">
+        <tbody className="divide-y divide-border">
           {emails.map((email) => (
-            <tr key={email.id} className="hover:bg-gray-700/30 transition-colors">
-              <td className="px-4 py-3 text-sm text-white font-medium">{email.to}</td>
-              <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{email.subject}</td>
+            <tr key={email.id} className="hover:bg-secondary/30 transition-colors">
+              <td className="px-4 py-3 text-sm text-foreground font-medium">{email.to}</td>
+              <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">{email.subject}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={email.status} />
               </td>
-              <td className="px-4 py-3 text-sm text-gray-400" suppressHydrationWarning>
+              <td className="px-4 py-3 text-sm text-muted-foreground" suppressHydrationWarning>
                 {email.openedAt ? formatRelativeTime(email.openedAt) : '—'}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-400" suppressHydrationWarning>
+              <td className="px-4 py-3 text-sm text-muted-foreground" suppressHydrationWarning>
                 {formatRelativeTime(email.createdAt)}
               </td>
             </tr>
@@ -58,12 +59,12 @@ export default function EmailsTable({ emails }: { emails: Email[] }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, { bg: string; text: string; dot: string }> = {
-    pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-    processing: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400 animate-pulse' },
-    completed: { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
-    failed: { bg: 'bg-red-500/10', text: 'text-red-400', dot: 'bg-red-400' },
-    bounced: { bg: 'bg-orange-500/10', text: 'text-orange-400', dot: 'bg-orange-400' },
-    complained: { bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-400' },
+    pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-500 dark:text-yellow-400', dot: 'bg-yellow-500 dark:bg-yellow-400' },
+    processing: { bg: 'bg-blue-500/10', text: 'text-blue-500 dark:text-blue-400', dot: 'bg-blue-500 dark:bg-blue-400 animate-pulse' },
+    completed: { bg: 'bg-green-500/10', text: 'text-green-500 dark:text-green-400', dot: 'bg-green-500 dark:bg-green-400' },
+    failed: { bg: 'bg-red-500/10', text: 'text-red-500 dark:text-red-400', dot: 'bg-red-500 dark:bg-red-400' },
+    bounced: { bg: 'bg-orange-500/10', text: 'text-orange-500 dark:text-orange-400', dot: 'bg-orange-500 dark:bg-orange-400' },
+    complained: { bg: 'bg-purple-500/10', text: 'text-purple-500 dark:text-purple-400', dot: 'bg-purple-500 dark:bg-purple-400' },
   };
 
   const style = styles[status] || styles.pending;
