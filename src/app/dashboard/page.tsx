@@ -14,7 +14,6 @@ export default async function DashboardPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get quick stats
   const [emailCount, keyCount, templateCount, webhookCount] = await Promise.all([
     db.select({ count: count() }).from(emails).where(and(eq(emails.userId, user.id), gte(emails.createdAt, today))),
     db.select({ count: count() }).from(apiKeys).where(eq(apiKeys.userId, user.id)),
@@ -40,7 +39,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
@@ -48,7 +46,6 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Link
@@ -66,7 +63,6 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Links */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
