@@ -94,7 +94,7 @@ export default function AnalyticsSection() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
           <>
             <SkeletonCard
@@ -102,6 +102,10 @@ export default function AnalyticsSection() {
               color="green"
             />
             <SkeletonCard title="Open Rate" color="blue" />
+            <SkeletonCard
+              title="Click Rate"
+              color="orange"
+            />
             <SkeletonCard title="Bounce Rate" color="red" />
           </>
         ) : overview ? (
@@ -117,6 +121,14 @@ export default function AnalyticsSection() {
               value={overview.openRate}
               subtitle={`${overview.opened} of ${overview.delivered} opened`}
               color="blue"
+            />
+            <RateCard
+              title="Click Rate"
+              value={overview.clickRate || 0}
+              subtitle={`${overview.clicked || 0} of ${
+                overview.opened
+              } clicked`}
+              color="orange"
             />
             <RateCard
               title="Bounce Rate"

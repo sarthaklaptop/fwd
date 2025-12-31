@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus } from 'lucide-react';
 import { BatchesTable } from './batches-table';
 import { BatchDetailModal } from './batches-modal';
+import { CreateCampaignModal } from './create-campaign-modal';
 import type { Batch, BatchDetail } from './batches-types';
 
 export default function BatchesSection() {
@@ -15,6 +16,8 @@ export default function BatchesSection() {
     string | null
   >(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] =
+    useState(false);
 
   useEffect(() => {
     fetchBatches();
@@ -44,6 +47,7 @@ export default function BatchesSection() {
         setSelectedBatch({
           ...response.data.batch,
           emails: response.data.emails,
+          linkStats: response.data.linkStats || null,
         });
       }
     } catch (error) {
@@ -57,13 +61,24 @@ export default function BatchesSection() {
     setPendingBatchId(null);
   }
 
+  function handleCampaignSuccess() {
+    fetchBatches();
+  }
+
   const pendingBatch = pendingBatchId
     ? batches.find((b) => b.id === pendingBatchId)
     : null;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          New Campaign
+        </button>
         <button
           onClick={() => fetchBatches()}
           disabled={loading}
@@ -93,6 +108,12 @@ export default function BatchesSection() {
           onClose={closeModal}
         />
       )}
+
+      <CreateCampaignModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleCampaignSuccess}
+      />
     </div>
   );
 }

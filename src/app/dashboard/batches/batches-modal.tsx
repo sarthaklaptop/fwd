@@ -99,6 +99,36 @@ export function BatchDetailModal({
                 </div>
               )}
 
+              {batch.linkStats &&
+                batch.linkStats.topLinks &&
+                batch.linkStats.topLinks.length > 0 && (
+                  <div className="border border-border rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                      🔗 Top Clicked Links
+                    </h4>
+                    <ul className="space-y-2">
+                      {batch.linkStats.topLinks
+                        .slice(0, 5)
+                        .map((link, idx) => (
+                          <li
+                            key={idx}
+                            className="flex justify-between items-center text-sm"
+                          >
+                            <span
+                              className="text-muted-foreground truncate max-w-[280px]"
+                              title={link.url}
+                            >
+                              {link.url}
+                            </span>
+                            <span className="text-orange-500 dark:text-orange-400 font-medium ml-2">
+                              {link.clicks} clicks
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+
               <div>
                 <h4 className="text-sm font-medium text-foreground mb-3">
                   Emails ({batch.emails?.length || 0})

@@ -25,8 +25,15 @@ export interface BatchEmail {
   createdAt: Date;
 }
 
+export interface LinkStats {
+  totalClicks: number;
+  uniqueClickedEmails: number;
+  topLinks: Array<{ url: string; clicks: number }>;
+}
+
 export interface BatchDetail extends Batch {
   emails: BatchEmail[];
+  linkStats?: LinkStats | null;
 }
 
 export interface BatchesTableProps {
