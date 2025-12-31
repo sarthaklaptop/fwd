@@ -9,6 +9,8 @@ export interface Batch {
   queued: number;
   completed: number;
   failed: number;
+  opened: number;
+  clicked: number;
   status: string;
   createdAt: Date;
 }
@@ -19,6 +21,7 @@ export interface BatchEmail {
   subject: string;
   status: string;
   openedAt: Date | null;
+  clickedAt: Date | null;
   createdAt: Date;
 }
 

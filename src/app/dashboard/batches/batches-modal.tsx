@@ -51,7 +51,7 @@ export function BatchDetailModal({
             <ModalSkeleton />
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 <StatCard
                   label="Total"
                   value={batch.total}
@@ -70,6 +70,16 @@ export function BatchDetailModal({
                   label="Failed"
                   value={batch.failed}
                   color="red"
+                />
+                <StatCard
+                  label="Opened"
+                  value={batch.opened}
+                  color="purple"
+                />
+                <StatCard
+                  label="Clicked"
+                  value={batch.clicked}
+                  color="orange"
                 />
               </div>
 
@@ -190,6 +200,8 @@ function StatCard({ label, value, color }: StatCardProps) {
     blue: 'text-blue-500 dark:text-blue-400',
     green: 'text-green-500 dark:text-green-400',
     red: 'text-red-500 dark:text-red-400',
+    purple: 'text-purple-500 dark:text-purple-400',
+    orange: 'text-orange-500 dark:text-orange-400',
   };
 
   return (
