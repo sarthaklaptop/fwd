@@ -20,6 +20,12 @@ const cardStyles: Record<
     bar: 'bg-blue-500',
     border: 'border-blue-500/20',
   },
+  orange: {
+    bg: 'from-orange-500/10 to-orange-600/5',
+    text: 'text-orange-500',
+    bar: 'bg-orange-500',
+    border: 'border-orange-500/20',
+  },
   red: {
     bg: 'from-red-500/10 to-red-600/5',
     text: 'text-red-500',

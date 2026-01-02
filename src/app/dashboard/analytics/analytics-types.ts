@@ -2,12 +2,14 @@ export interface AnalyticsData {
   total: number;
   delivered: number;
   opened: number;
+  clicked: number;
   bounced: number;
   complained: number;
   failed: number;
   pending: number;
   deliveryRate: number;
   openRate: number;
+  clickRate: number;
   bounceRate: number;
   range: string;
 }
@@ -27,7 +29,7 @@ export interface TimelineData {
   groupBy: string;
 }
 
-export type CardColor = 'green' | 'blue' | 'red';
+export type CardColor = 'green' | 'blue' | 'red' | 'orange';
 
 export interface RateCardProps {
   title: string;

@@ -5,6 +5,7 @@ import { batches, emails, templates } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
+import { getLinkStats } from '@/lib/shrnk';
 
 export async function GET(
   req: NextRequest,
@@ -53,11 +54,20 @@ export async function GET(
       subject: emails.subject,
       status: emails.status,
       openedAt: emails.openedAt,
+      clickedAt: emails.clickedAt,
       createdAt: emails.createdAt,
     })
     .from(emails)
     .where(eq(emails.batchId, id))
     .limit(500);
+
+  // Fetch link stats from Shrnk (optional, may fail if not configured)
+  let linkStats = null;
+  try {
+    linkStats = await getLinkStats(id);
+  } catch (e) {
+    console.error('Failed to fetch link stats:', e);
+  }
 
   return new ApiResponse(
     200,
@@ -67,6 +77,7 @@ export async function GET(
         templateName,
       },
       emails: batchEmails,
+      linkStats,
     },
     'Batch details loaded'
   ).send();

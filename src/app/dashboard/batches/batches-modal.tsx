@@ -51,7 +51,7 @@ export function BatchDetailModal({
             <ModalSkeleton />
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 <StatCard
                   label="Total"
                   value={batch.total}
@@ -71,6 +71,16 @@ export function BatchDetailModal({
                   value={batch.failed}
                   color="red"
                 />
+                <StatCard
+                  label="Opened"
+                  value={batch.opened}
+                  color="purple"
+                />
+                <StatCard
+                  label="Clicked"
+                  value={batch.clicked}
+                  color="orange"
+                />
               </div>
 
               {(batch.suppressed > 0 ||
@@ -88,6 +98,36 @@ export function BatchDetailModal({
                   )}
                 </div>
               )}
+
+              {batch.linkStats &&
+                batch.linkStats.topLinks &&
+                batch.linkStats.topLinks.length > 0 && (
+                  <div className="border border-border rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                      🔗 Top Clicked Links
+                    </h4>
+                    <ul className="space-y-2">
+                      {batch.linkStats.topLinks
+                        .slice(0, 5)
+                        .map((link, idx) => (
+                          <li
+                            key={idx}
+                            className="flex justify-between items-center text-sm"
+                          >
+                            <span
+                              className="text-muted-foreground truncate max-w-[280px]"
+                              title={link.url}
+                            >
+                              {link.url}
+                            </span>
+                            <span className="text-orange-500 dark:text-orange-400 font-medium ml-2">
+                              {link.clicks} clicks
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
 
               <div>
                 <h4 className="text-sm font-medium text-foreground mb-3">
@@ -190,6 +230,8 @@ function StatCard({ label, value, color }: StatCardProps) {
     blue: 'text-blue-500 dark:text-blue-400',
     green: 'text-green-500 dark:text-green-400',
     red: 'text-red-500 dark:text-red-400',
+    purple: 'text-purple-500 dark:text-purple-400',
+    orange: 'text-orange-500 dark:text-orange-400',
   };
 
   return (
