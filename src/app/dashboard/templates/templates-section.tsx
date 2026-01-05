@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TemplateCard, EmptyState } from './templates-card';
 import { TemplateModal } from './templates-modal';
@@ -25,6 +25,14 @@ export default function TemplatesSection({
   const [deleteTarget, setDeleteTarget] =
     useState<Template | null>(null);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+
+  // Filter templates by search
+  const filteredTemplates = templates.filter(
+    (t) =>
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.subject.toLowerCase().includes(search.toLowerCase())
+  );
 
   const openCreateModal = () => {
     setEditingTemplate(null);
@@ -115,7 +123,17 @@ export default function TemplatesSection({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex-1 relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search templates..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+          />
+        </div>
         <button
           onClick={openCreateModal}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all"
@@ -125,11 +143,23 @@ export default function TemplatesSection({
         </button>
       </div>
 
-      {templates.length === 0 ? (
-        <EmptyState onCreateClick={openCreateModal} />
+      {filteredTemplates.length === 0 ? (
+        search ? (
+          <div className="text-center py-12 border border-border rounded-xl bg-card/50">
+            <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+            <p className="text-foreground font-medium">
+              No templates match "{search}"
+            </p>
+            <p className="text-muted-foreground text-sm mt-1">
+              Try a different search term
+            </p>
+          </div>
+        ) : (
+          <EmptyState onCreateClick={openCreateModal} />
+        )
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
+          {filteredTemplates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
