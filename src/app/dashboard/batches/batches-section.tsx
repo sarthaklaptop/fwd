@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { BatchesTable } from './batches-table';
 import { BatchDetailModal } from './batches-modal';
 import { CreateCampaignModal } from './create-campaign-modal';
@@ -33,6 +34,7 @@ export default function BatchesSection() {
       }
     } catch (error) {
       console.error('Failed to fetch batches:', error);
+      toast.error('Failed to load batches');
     }
     setLoading(false);
   }
@@ -52,6 +54,7 @@ export default function BatchesSection() {
       }
     } catch (error) {
       console.error('Failed to fetch batch detail:', error);
+      toast.error('Failed to load batch details');
     }
     setDetailLoading(false);
   }

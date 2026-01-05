@@ -9,6 +9,7 @@ import {
   Users,
   Eye,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Template {
   id: string;
@@ -120,15 +121,18 @@ export function CreateCampaignModal({
       const response = await res.json();
 
       if (response.success) {
+        toast.success(
+          response.message || 'Campaign sent successfully!'
+        );
         onSuccess();
         onClose();
       } else {
-        setError(
+        toast.error(
           response.message || 'Failed to send campaign'
         );
       }
     } catch (err) {
-      setError('Failed to send campaign');
+      toast.error('Failed to send campaign');
     }
     setSending(false);
   }
