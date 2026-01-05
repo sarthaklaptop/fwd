@@ -16,6 +16,7 @@ import type { TemplateModalProps } from './templates-types';
 export function TemplateModal({
   isOpen,
   editingTemplate,
+  duplicateSource,
   loading,
   onClose,
   onSave,
@@ -33,12 +34,16 @@ export function TemplateModal({
       setName(editingTemplate.name);
       setSubject(editingTemplate.subject);
       setHtml(editingTemplate.html);
+    } else if (duplicateSource) {
+      setName(`Copy of ${duplicateSource.name}`);
+      setSubject(duplicateSource.subject);
+      setHtml(duplicateSource.html);
     } else {
       setName('');
       setSubject('');
       setHtml('');
     }
-  }, [editingTemplate, isOpen]);
+  }, [editingTemplate, duplicateSource, isOpen]);
 
   const canSubmit =
     !loading &&
@@ -122,6 +127,8 @@ export function TemplateModal({
             <h3 className="text-xl font-bold text-foreground">
               {editingTemplate
                 ? 'Edit Template'
+                : duplicateSource
+                ? 'Duplicate Template'
                 : 'Create Template'}
             </h3>
           </div>
@@ -290,6 +297,8 @@ export function TemplateModal({
               </>
             ) : editingTemplate ? (
               'Update Template'
+            ) : duplicateSource ? (
+              'Duplicate Template'
             ) : (
               'Create Template'
             )}

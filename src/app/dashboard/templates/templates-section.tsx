@@ -20,6 +20,8 @@ export default function TemplatesSection({
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] =
     useState<Template | null>(null);
+  const [duplicateSource, setDuplicateSource] =
+    useState<Template | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<Template | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,12 +33,20 @@ export default function TemplatesSection({
 
   const openEditModal = (template: Template) => {
     setEditingTemplate(template);
+    setDuplicateSource(null);
+    setShowModal(true);
+  };
+
+  const duplicateTemplate = (template: Template) => {
+    setEditingTemplate(null);
+    setDuplicateSource(template);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingTemplate(null);
+    setDuplicateSource(null);
   };
 
   const saveTemplate = async (
@@ -125,6 +135,7 @@ export default function TemplatesSection({
               template={template}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
+              onDuplicate={duplicateTemplate}
             />
           ))}
         </div>
@@ -133,6 +144,7 @@ export default function TemplatesSection({
       <TemplateModal
         isOpen={showModal}
         editingTemplate={editingTemplate}
+        duplicateSource={duplicateSource}
         loading={loading}
         onClose={closeModal}
         onSave={saveTemplate}

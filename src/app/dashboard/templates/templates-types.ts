@@ -16,11 +16,13 @@ export interface TemplateCardProps {
   template: Template;
   onEdit: (template: Template) => void;
   onDelete: (template: Template) => void;
+  onDuplicate: (template: Template) => void;
 }
 
 export interface TemplateModalProps {
   isOpen: boolean;
   editingTemplate: Template | null;
+  duplicateSource: Template | null;
   loading: boolean;
   onClose: () => void;
   onSave: (

@@ -1,6 +1,11 @@
 'use client';
 
-import { FileText, Pencil, Trash2 } from 'lucide-react';
+import {
+  FileText,
+  Pencil,
+  Trash2,
+  Copy,
+} from 'lucide-react';
 import type {
   Template,
   TemplateCardProps,
@@ -11,6 +16,7 @@ export function TemplateCard({
   template,
   onEdit,
   onDelete,
+  onDuplicate,
 }: TemplateCardProps) {
   return (
     <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
@@ -18,16 +24,25 @@ export function TemplateCard({
         <h3 className="text-foreground font-medium truncate">
           {template.name}
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
+          <button
+            onClick={() => onDuplicate(template)}
+            className="inline-flex items-center gap-1 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm p-1 rounded hover:bg-blue-500/10 transition-colors"
+            title="Duplicate template"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(template)}
             className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-sm p-1 rounded hover:bg-primary/10 transition-colors"
+            title="Edit template"
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(template)}
             className="inline-flex items-center gap-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm p-1 rounded hover:bg-red-500/10 transition-colors"
+            title="Delete template"
           >
             <Trash2 className="w-4 h-4" />
           </button>
