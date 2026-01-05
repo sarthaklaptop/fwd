@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Webhook,
   ClipboardList,
   Zap,
   Trash2,
   Copy,
+  Check,
 } from 'lucide-react';
 import type { WebhookCardProps } from './webhooks-types';
 
@@ -17,13 +20,63 @@ export function WebhookCard({
   onDelete,
   onCopySecret,
 }: WebhookCardProps) {
+  const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const handleCopy = () => {
+    onCopySecret(webhook.secret);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(webhook.url);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 mr-4">
-          <h3 className="text-foreground font-mono text-sm break-all mb-2">
-            {webhook.url}
-          </h3>
+          <div className="flex items-start gap-2 mb-2">
+            <h3 className="text-foreground font-mono text-sm break-all flex-1">
+              {webhook.url}
+            </h3>
+            <button
+              onClick={handleCopyUrl}
+              className={`p-1 rounded transition-colors shrink-0 ${
+                copiedUrl
+                  ? 'text-green-500 dark:text-green-400 bg-green-500/10'
+                  : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+              }`}
+              title={copiedUrl ? 'Copied!' : 'Copy URL'}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {copiedUrl ? (
+                  <motion.div
+                    key="check"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="copy"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {webhook.events.map((event) => (
               <span
@@ -70,11 +123,37 @@ export function WebhookCard({
           {webhook.secret.slice(-4)}
         </code>
         <button
-          onClick={() => onCopySecret(webhook.secret)}
-          className="ml-auto p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded transition-colors"
-          title="Copy Secret"
+          onClick={handleCopy}
+          className={`ml-auto p-1.5 rounded transition-colors ${
+            copied
+              ? 'text-green-500 dark:text-green-400 bg-green-500/10'
+              : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+          }`}
+          title={copied ? 'Copied!' : 'Copy Secret'}
         >
-          <Copy className="w-4 h-4" />
+          <AnimatePresence mode="wait" initial={false}>
+            {copied ? (
+              <motion.div
+                key="check"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Check className="w-4 h-4" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="copy"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Copy className="w-4 h-4" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </button>
       </div>
     </div>

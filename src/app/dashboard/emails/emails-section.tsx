@@ -6,6 +6,7 @@ import {
   useCallback,
   useRef,
 } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatRelativeTime } from '@/lib/utils';
 import {
   Mail,
@@ -15,6 +16,7 @@ import {
   X,
   ChevronDown,
   Check,
+  Copy,
 } from 'lucide-react';
 import type {
   Email,
@@ -325,6 +327,15 @@ function EmailDetailModal({
   onClose,
 }: EmailDetailModalProps) {
   const displayEmail = email || pendingEmail;
+  const [copied, setCopied] = useState(false);
+
+  const copyEmail = () => {
+    if (displayEmail?.to) {
+      navigator.clipboard.writeText(displayEmail.to);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -378,9 +389,61 @@ function EmailDetailModal({
                   <p className="text-muted-foreground mb-1">
                     To
                   </p>
-                  <p className="text-foreground font-medium">
-                    {email.to}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground font-medium">
+                      {email.to}
+                    </p>
+                    <button
+                      onClick={copyEmail}
+                      className={`p-1 rounded transition-colors ${
+                        copied
+                          ? 'text-green-500 dark:text-green-400 bg-green-500/10'
+                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                      }`}
+                      title={
+                        copied ? 'Copied!' : 'Copy email'
+                      }
+                    >
+                      <AnimatePresence
+                        mode="wait"
+                        initial={false}
+                      >
+                        {copied ? (
+                          <motion.div
+                            key="check"
+                            initial={{
+                              scale: 0,
+                              opacity: 0,
+                            }}
+                            animate={{
+                              scale: 1,
+                              opacity: 1,
+                            }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            key="copy"
+                            initial={{
+                              scale: 0,
+                              opacity: 0,
+                            }}
+                            animate={{
+                              scale: 1,
+                              opacity: 1,
+                            }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">

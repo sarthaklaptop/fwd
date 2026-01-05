@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Key,
   Copy,
@@ -45,19 +46,39 @@ export function NewKeyModal({
         <div className="flex gap-3">
           <button
             onClick={copyToClipboard}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all"
+            className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 font-medium rounded-lg transition-all ${
+              copied
+                ? 'bg-green-500 hover:bg-green-600 text-white'
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+            }`}
           >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copy Key
-              </>
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              {copied ? (
+                <motion.div
+                  key="copied"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Copied!
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="copy"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy Key
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
           <button
             onClick={onClose}
