@@ -7,6 +7,8 @@ import {
   Code,
   Variable,
   Eye,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { TemplateModalProps } from './templates-types';
@@ -24,6 +26,7 @@ export function TemplateModal({
   const [activeTab, setActiveTab] = useState<
     'editor' | 'preview'
   >('editor');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (editingTemplate) {
@@ -100,20 +103,43 @@ export function TemplateModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in p-4">
-      <div className="bg-card border border-border p-6 rounded-xl w-full max-w-5xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            {editingTemplate ? (
-              <Pencil className="w-5 h-5 text-primary" />
-            ) : (
-              <FileText className="w-5 h-5 text-primary" />
-            )}
+      <div
+        className={`bg-card border border-border p-6 rounded-xl w-full shadow-2xl overflow-y-auto transition-all duration-300 ${
+          isFullScreen
+            ? 'max-w-none mx-0 h-full max-h-full rounded-none'
+            : 'max-w-5xl mx-4 max-h-[90vh]'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              {editingTemplate ? (
+                <Pencil className="w-5 h-5 text-primary" />
+              ) : (
+                <FileText className="w-5 h-5 text-primary" />
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-foreground">
+              {editingTemplate
+                ? 'Edit Template'
+                : 'Create Template'}
+            </h3>
           </div>
-          <h3 className="text-xl font-bold text-foreground">
-            {editingTemplate
-              ? 'Edit Template'
-              : 'Create Template'}
-          </h3>
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            title={
+              isFullScreen
+                ? 'Exit fullscreen'
+                : 'Fullscreen'
+            }
+          >
+            {isFullScreen ? (
+              <Minimize2 className="w-5 h-5" />
+            ) : (
+              <Maximize2 className="w-5 h-5" />
+            )}
+          </button>
         </div>
 
         <div className="space-y-4">
@@ -188,7 +214,7 @@ export function TemplateModal({
                 value={html}
                 onChange={(e) => setHtml(e.target.value)}
                 placeholder="<h1>Hello {{name}}</h1><p>Welcome to {{company}}!</p>"
-                rows={12}
+                rows={isFullScreen ? 24 : 12}
                 className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm resize-none"
               />
             </div>
@@ -205,7 +231,11 @@ export function TemplateModal({
                 <Eye className="w-4 h-4" />
                 Live Preview
               </label>
-              <div className="border border-border rounded-lg overflow-hidden bg-white h-[300px]">
+              <div
+                className={`border border-border rounded-lg overflow-hidden bg-white ${
+                  isFullScreen ? 'h-[600px]' : 'h-[300px]'
+                }`}
+              >
                 {html.trim() ? (
                   <iframe
                     srcDoc={getPreviewHtml()}
