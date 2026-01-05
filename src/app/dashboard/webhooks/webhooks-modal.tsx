@@ -144,6 +144,20 @@ export function WebhookModal({
             Cancel
           </button>
         </div>
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+            Esc
+          </kbd>{' '}
+          to close{' · '}
+          <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+            ⌘
+          </kbd>
+          <span className="mx-0.5">+</span>
+          <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+            Enter
+          </kbd>{' '}
+          to save
+        </p>
       </div>
     </div>
   );

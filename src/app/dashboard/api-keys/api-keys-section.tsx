@@ -113,6 +113,13 @@ export default function ApiKeysSection({
             </>
           )}
         </button>
+        <span className="text-xs text-muted-foreground hidden sm:flex items-center">
+          Press{' '}
+          <kbd className="mx-1 px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+            Enter
+          </kbd>{' '}
+          to create
+        </span>
       </div>
 
       <KeysTable keys={keys} onRevoke={setRevokeTarget} />

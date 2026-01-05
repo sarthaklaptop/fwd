@@ -167,7 +167,7 @@ export function CreateCampaignModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
           >
             <X className="w-5 h-5" />
           </button>
@@ -308,13 +308,34 @@ user@example.com"
 
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-border bg-secondary/20">
-          <button
-            onClick={() => step > 1 && setStep(step - 1)}
-            disabled={step === 1}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Back
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => step > 1 && setStep(step - 1)}
+              disabled={step === 1}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Back
+            </button>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+                Esc
+              </kbd>{' '}
+              to close
+              {step === 3 && (
+                <>
+                  {' · '}
+                  <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+                    ⌘
+                  </kbd>
+                  <span className="mx-0.5">+</span>
+                  <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+                    Enter
+                  </kbd>{' '}
+                  to send
+                </>
+              )}
+            </span>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={onClose}

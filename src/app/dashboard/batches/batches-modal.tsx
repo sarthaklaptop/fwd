@@ -43,7 +43,7 @@ export function BatchDetailModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
           >
             <X className="w-5 h-5" />
           </button>

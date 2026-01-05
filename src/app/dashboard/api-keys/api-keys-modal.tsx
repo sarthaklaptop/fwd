@@ -87,6 +87,13 @@ export function NewKeyModal({
             Done
           </button>
         </div>
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          Press{' '}
+          <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
+            Esc
+          </kbd>{' '}
+          to close
+        </p>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Key, Trash2 } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/utils';
 import type {
   ApiKey,
   KeysTableProps,
@@ -53,9 +54,7 @@ export function KeysTable({
                 suppressHydrationWarning
               >
                 {key.lastUsedAt
-                  ? new Date(
-                      key.lastUsedAt
-                    ).toLocaleString()
+                  ? formatRelativeTime(key.lastUsedAt)
                   : 'Never'}
               </td>
               <td className="px-4 py-3">
