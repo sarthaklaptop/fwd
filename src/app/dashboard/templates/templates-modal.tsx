@@ -6,6 +6,7 @@ import {
   Pencil,
   Code,
   Variable,
+  Eye,
 } from 'lucide-react';
 import type { TemplateModalProps } from './templates-types';
 
@@ -19,6 +20,9 @@ export function TemplateModal({
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [html, setHtml] = useState('');
+  const [activeTab, setActiveTab] = useState<
+    'editor' | 'preview'
+  >('editor');
 
   useEffect(() => {
     if (editingTemplate) {
@@ -52,9 +56,36 @@ export function TemplateModal({
     onSave(name, subject, html);
   };
 
+  const getPreviewHtml = () => {
+    let preview = html;
+    previewVars.forEach((v) => {
+      preview = preview.replace(
+        new RegExp(`\\{\\{${v}\\}\\}`, 'g'),
+        `<span style="background:#e07a5f;color:white;padding:2px 6px;border-radius:4px;font-size:12px;">{{${v}}}</span>`
+      );
+    });
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              padding: 16px;
+              margin: 0;
+              color: #1f2937;
+              line-height: 1.6;
+            }
+          </style>
+        </head>
+        <body>${preview}</body>
+      </html>
+    `;
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in">
-      <div className="bg-card border border-border p-6 rounded-xl max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in p-4">
+      <div className="bg-card border border-border p-6 rounded-xl w-full max-w-5xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-primary/10 rounded-lg">
             {editingTemplate ? (
@@ -71,44 +102,109 @@ export function TemplateModal({
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Template Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Welcome Email"
-              className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Template Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Welcome Email"
+                className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Subject Line
+              </label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="e.g., Welcome to {{company}}, {{name}}!"
+                className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Subject Line
-            </label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g., Welcome to {{company}}, {{name}}!"
-              className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
+          {/* Mobile Tab Toggle */}
+          <div className="flex md:hidden border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setActiveTab('editor')}
+              className={`flex-1 px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                activeTab === 'editor'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
               <Code className="w-4 h-4" />
-              HTML Content
-            </label>
-            <textarea
-              value={html}
-              onChange={(e) => setHtml(e.target.value)}
-              placeholder="<h1>Hello {{name}}</h1><p>Welcome to {{company}}!</p>"
-              rows={6}
-              className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm"
-            />
+              Editor
+            </button>
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`flex-1 px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                activeTab === 'preview'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Eye className="w-4 h-4" />
+              Preview
+            </button>
+          </div>
+
+          {/* Editor & Preview Split */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Editor Panel */}
+            <div
+              className={`${
+                activeTab === 'preview'
+                  ? 'hidden md:block'
+                  : ''
+              }`}
+            >
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
+                <Code className="w-4 h-4" />
+                HTML Content
+              </label>
+              <textarea
+                value={html}
+                onChange={(e) => setHtml(e.target.value)}
+                placeholder="<h1>Hello {{name}}</h1><p>Welcome to {{company}}!</p>"
+                rows={12}
+                className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-sm resize-none"
+              />
+            </div>
+
+            {/* Preview Panel */}
+            <div
+              className={`${
+                activeTab === 'editor'
+                  ? 'hidden md:block'
+                  : ''
+              }`}
+            >
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-1">
+                <Eye className="w-4 h-4" />
+                Live Preview
+              </label>
+              <div className="border border-border rounded-lg overflow-hidden bg-white h-[300px]">
+                {html.trim() ? (
+                  <iframe
+                    srcDoc={getPreviewHtml()}
+                    sandbox="allow-same-origin"
+                    title="Email Preview"
+                    className="w-full h-full border-0"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    Start typing HTML to see preview
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {previewVars.length > 0 && (
