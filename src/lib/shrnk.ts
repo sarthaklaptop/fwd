@@ -1,5 +1,6 @@
 const SHRNK_API_URL =
-  process.env.SHRNK_API_URL || 'https://shrnk.app/api';
+  process.env.SHRNK_API_URL ||
+  'https://shrnk.sarthak.online/api';
 const SHRNK_API_KEY = process.env.SHRNK_API_KEY || '';
 
 // Types

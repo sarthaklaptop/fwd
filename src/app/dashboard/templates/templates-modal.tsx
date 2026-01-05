@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   FileText,
   Pencil,
@@ -12,6 +12,12 @@ import {
 } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { TemplateModalProps } from './templates-types';
+import {
+  LinkTrackingSection,
+  extractLinksFromHtml,
+  getExcludedLinksFromHtml,
+  updateHtmlWithExclusions,
+} from './link-tracking-section';
 
 export function TemplateModal({
   isOpen,
@@ -28,20 +34,36 @@ export function TemplateModal({
     'editor' | 'preview'
   >('editor');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [excludedLinks, setExcludedLinks] = useState<
+    Set<string>
+  >(new Set());
+
+  // Parse links from HTML
+  const detectedLinks = useMemo(
+    () => extractLinksFromHtml(html),
+    [html]
+  );
 
   useEffect(() => {
     if (editingTemplate) {
       setName(editingTemplate.name);
       setSubject(editingTemplate.subject);
       setHtml(editingTemplate.html);
+      setExcludedLinks(
+        getExcludedLinksFromHtml(editingTemplate.html)
+      );
     } else if (duplicateSource) {
       setName(`Copy of ${duplicateSource.name}`);
       setSubject(duplicateSource.subject);
       setHtml(duplicateSource.html);
+      setExcludedLinks(
+        getExcludedLinksFromHtml(duplicateSource.html)
+      );
     } else {
       setName('');
       setSubject('');
       setHtml('');
+      setExcludedLinks(new Set());
     }
   }, [editingTemplate, duplicateSource, isOpen]);
 
@@ -53,8 +75,7 @@ export function TemplateModal({
 
   useModalKeyboard({
     onClose,
-    onSubmit: () =>
-      canSubmit && onSave(name, subject, html),
+    onSubmit: () => canSubmit && handleSave(),
     isOpen,
     submitDisabled: !canSubmit,
   });
@@ -76,7 +97,22 @@ export function TemplateModal({
   ];
 
   const handleSave = () => {
-    onSave(name, subject, html);
+    // Apply link exclusions to HTML before saving
+    const finalHtml = updateHtmlWithExclusions(
+      html,
+      detectedLinks,
+      excludedLinks
+    );
+    onSave(name, subject, finalHtml);
+  };
+
+  const toggleLink = (url: string) => {
+    setExcludedLinks((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
   };
 
   const getPreviewHtml = () => {
@@ -277,6 +313,13 @@ export function TemplateModal({
               </div>
             </div>
           )}
+
+          {/* Link Tracking */}
+          <LinkTrackingSection
+            links={detectedLinks}
+            excludedLinks={excludedLinks}
+            onToggle={toggleLink}
+          />
         </div>
 
         <div className="flex gap-3 mt-6">

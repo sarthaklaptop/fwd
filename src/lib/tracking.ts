@@ -69,12 +69,30 @@ export function getListUnsubscribeHeader(
 
 /**
  * Extract all unique HTTP(S) links from HTML content.
- * Excludes unsubscribe links and tracking pixels.
+ * Excludes unsubscribe links, tracking pixels, and links with data-no-track attribute.
  */
 export function extractLinks(html: string): string[] {
-  const regex = /href=["'](https?:\/\/[^"']+)["']/gi;
-  const matches = [...html.matchAll(regex)];
-  const urls = matches.map((m) => m[1]);
+  // First, get all anchor tags
+  const anchorRegex = /<a\s+([^>]*)>/gi;
+  const urls: string[] = [];
+
+  let match;
+  while ((match = anchorRegex.exec(html)) !== null) {
+    const tagContent = match[1];
+
+    // Skip if has data-no-track attribute
+    if (/data-no-track/i.test(tagContent)) {
+      continue;
+    }
+
+    // Extract href from tag
+    const hrefMatch = tagContent.match(
+      /href=["'](https?:\/\/[^"']+)["']/i
+    );
+    if (hrefMatch) {
+      urls.push(hrefMatch[1]);
+    }
+  }
 
   // Dedupe and filter out internal tracking/unsubscribe links
   return [...new Set(urls)].filter(
