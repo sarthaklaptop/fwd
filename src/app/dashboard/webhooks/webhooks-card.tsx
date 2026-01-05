@@ -91,7 +91,7 @@ export function WebhookCard({
         <div className="flex gap-2">
           <button
             onClick={() => onViewLogs(webhook)}
-            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-secondary transition-colors"
+            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted transition-colors"
           >
             <ClipboardList className="w-4 h-4" />
             Logs
