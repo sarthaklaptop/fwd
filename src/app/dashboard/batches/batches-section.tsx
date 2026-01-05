@@ -53,6 +53,21 @@ export default function BatchesSection() {
     fetchBatches();
   }, []);
 
+  // Listen for command palette event
+  useEffect(() => {
+    const handleNewCampaign = () =>
+      setShowCreateModal(true);
+    window.addEventListener(
+      'cmd:new-campaign',
+      handleNewCampaign
+    );
+    return () =>
+      window.removeEventListener(
+        'cmd:new-campaign',
+        handleNewCampaign
+      );
+  }, []);
+
   async function fetchBatches() {
     setLoading(true);
     try {

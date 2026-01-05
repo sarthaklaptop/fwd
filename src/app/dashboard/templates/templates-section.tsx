@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConfirmDialog } from '@/components/ui';
 import { Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,6 +38,20 @@ export default function TemplatesSection({
     setEditingTemplate(null);
     setShowModal(true);
   };
+
+  // Listen for command palette event
+  useEffect(() => {
+    const handleCreateTemplate = () => openCreateModal();
+    window.addEventListener(
+      'cmd:create-template',
+      handleCreateTemplate
+    );
+    return () =>
+      window.removeEventListener(
+        'cmd:create-template',
+        handleCreateTemplate
+      );
+  }, []);
 
   const openEditModal = (template: Template) => {
     setEditingTemplate(template);

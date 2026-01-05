@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConfirmDialog } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -31,6 +31,20 @@ export default function WebhooksSection({
   const openCreateModal = () => {
     setShowModal(true);
   };
+
+  // Listen for command palette event
+  useEffect(() => {
+    const handleAddWebhook = () => openCreateModal();
+    window.addEventListener(
+      'cmd:add-webhook',
+      handleAddWebhook
+    );
+    return () =>
+      window.removeEventListener(
+        'cmd:add-webhook',
+        handleAddWebhook
+      );
+  }, []);
 
   const closeModal = () => {
     setShowModal(false);

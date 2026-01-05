@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ConfirmDialog } from '@/components/ui';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -21,6 +21,22 @@ export default function ApiKeysSection({
   const [loading, setLoading] = useState(false);
   const [revokeTarget, setRevokeTarget] =
     useState<ApiKey | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for command palette event
+  useEffect(() => {
+    const handleFocusInput = () =>
+      inputRef.current?.focus();
+    window.addEventListener(
+      'cmd:focus-api-key',
+      handleFocusInput
+    );
+    return () =>
+      window.removeEventListener(
+        'cmd:focus-api-key',
+        handleFocusInput
+      );
+  }, []);
 
   const createKey = async () => {
     if (!newKeyName.trim()) return;
@@ -87,6 +103,7 @@ export default function ApiKeysSection({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-3">
         <input
+          ref={inputRef}
           type="text"
           value={newKeyName}
           onChange={(e) => setNewKeyName(e.target.value)}
