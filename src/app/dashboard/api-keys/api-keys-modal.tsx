@@ -5,6 +5,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { NewKeyModalProps } from './api-keys-types';
 
 export function NewKeyModal({
@@ -12,6 +13,8 @@ export function NewKeyModal({
   onClose,
 }: NewKeyModalProps) {
   const [copied, setCopied] = useState(false);
+
+  useModalKeyboard({ onClose, isOpen: true });
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(newKey);

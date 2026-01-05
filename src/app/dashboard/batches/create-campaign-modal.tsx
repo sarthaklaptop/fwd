@@ -10,6 +10,7 @@ import {
   Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 
 interface Template {
   id: string;
@@ -47,6 +48,13 @@ export function CreateCampaignModal({
   const [previewHtml, setPreviewHtml] = useState<
     string | null
   >(null);
+
+  useModalKeyboard({
+    onClose,
+    onSubmit: () => step === 3 && !sending && handleSend(),
+    isOpen,
+    submitDisabled: step !== 3 || sending,
+  });
 
   useEffect(() => {
     if (isOpen) {

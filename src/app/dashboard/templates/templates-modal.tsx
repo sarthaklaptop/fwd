@@ -8,6 +8,7 @@ import {
   Variable,
   Eye,
 } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { TemplateModalProps } from './templates-types';
 
 export function TemplateModal({
@@ -35,6 +36,20 @@ export function TemplateModal({
       setHtml('');
     }
   }, [editingTemplate, isOpen]);
+
+  const canSubmit =
+    !loading &&
+    name.trim() &&
+    subject.trim() &&
+    html.trim();
+
+  useModalKeyboard({
+    onClose,
+    onSubmit: () =>
+      canSubmit && onSave(name, subject, html),
+    isOpen,
+    submitDisabled: !canSubmit,
+  });
 
   if (!isOpen) return null;
 

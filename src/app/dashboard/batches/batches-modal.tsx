@@ -1,4 +1,5 @@
 import { Package, X, Check, Minus } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type {
   Batch,
   BatchDetail,
@@ -14,6 +15,8 @@ export function BatchDetailModal({
   onClose,
 }: BatchDetailModalProps) {
   const displayBatch = batch || pendingBatch;
+
+  useModalKeyboard({ onClose, isOpen: true });
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">

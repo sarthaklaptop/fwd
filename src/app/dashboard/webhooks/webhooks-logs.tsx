@@ -2,6 +2,7 @@
 
 import { X, Check, Inbox } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { LogsModalProps } from './webhooks-types';
 
 export function LogsModal({
@@ -10,6 +11,8 @@ export function LogsModal({
   loading,
   onClose,
 }: LogsModalProps) {
+  useModalKeyboard({ onClose, isOpen: !!webhook });
+
   if (!webhook) return null;
 
   return (

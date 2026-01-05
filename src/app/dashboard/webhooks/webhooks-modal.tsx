@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Webhook, Check } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { WebhookModalProps } from './webhooks-types';
 import { AVAILABLE_EVENTS } from './webhooks-types';
 
@@ -16,18 +17,6 @@ export function WebhookModal({
     string[]
   >([]);
 
-  if (!isOpen) return null;
-
-  const toggleEvent = (eventId: string) => {
-    if (selectedEvents.includes(eventId)) {
-      setSelectedEvents(
-        selectedEvents.filter((e) => e !== eventId)
-      );
-    } else {
-      setSelectedEvents([...selectedEvents, eventId]);
-    }
-  };
-
   const handleSave = () => {
     onSave(url, selectedEvents);
     setUrl('');
@@ -38,6 +27,28 @@ export function WebhookModal({
     setUrl('');
     setSelectedEvents([]);
     onClose();
+  };
+
+  const canSubmit =
+    !loading && url.trim() && selectedEvents.length > 0;
+
+  useModalKeyboard({
+    onClose: handleClose,
+    onSubmit: () => canSubmit && handleSave(),
+    isOpen,
+    submitDisabled: !canSubmit,
+  });
+
+  if (!isOpen) return null;
+
+  const toggleEvent = (eventId: string) => {
+    if (selectedEvents.includes(eventId)) {
+      setSelectedEvents(
+        selectedEvents.filter((e) => e !== eventId)
+      );
+    } else {
+      setSelectedEvents([...selectedEvents, eventId]);
+    }
   };
 
   return (
