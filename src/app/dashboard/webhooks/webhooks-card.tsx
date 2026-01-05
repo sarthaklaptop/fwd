@@ -81,16 +81,26 @@ export function WebhookCard({
   );
 }
 
-export function EmptyState() {
+export function EmptyState({
+  onAddClick,
+}: {
+  onAddClick: () => void;
+}) {
   return (
     <div className="text-center py-12 border border-border rounded-xl bg-card/50">
       <Webhook className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
       <p className="text-foreground font-medium">
         No webhooks configured
       </p>
-      <p className="text-muted-foreground text-sm mt-1">
+      <p className="text-muted-foreground text-sm mt-1 mb-4">
         Add an endpoint to start receiving events
       </p>
+      <button
+        onClick={onAddClick}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Add Endpoint
+      </button>
     </div>
   );
 }

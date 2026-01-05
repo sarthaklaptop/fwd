@@ -101,6 +101,7 @@ export default function BatchesSection() {
         batches={batches}
         loading={loading}
         onSelectBatch={fetchBatchDetail}
+        onCreateClick={() => setShowCreateModal(true)}
       />
 
       {(selectedBatch || pendingBatchId) && (

@@ -136,7 +136,7 @@ export default function WebhooksSection({
       </div>
 
       {webhooks.length === 0 ? (
-        <EmptyState />
+        <EmptyState onAddClick={openCreateModal} />
       ) : (
         <div className="space-y-4">
           {webhooks.map((webhook) => (

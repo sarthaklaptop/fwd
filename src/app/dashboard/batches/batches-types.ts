@@ -40,6 +40,7 @@ export interface BatchesTableProps {
   batches: Batch[];
   loading: boolean;
   onSelectBatch: (batch: Batch) => void;
+  onCreateClick: () => void;
 }
 
 export interface StatusBadgeProps {

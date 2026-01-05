@@ -17,7 +17,8 @@ export function KeysTable({
           No API keys yet
         </p>
         <p className="text-muted-foreground text-sm mt-1">
-          Create your first key to get started
+          Enter a name above and click &quot;Create
+          Key&quot; to get started
         </p>
       </div>
     );

@@ -1,4 +1,4 @@
-import { Package } from 'lucide-react';
+import { Package, Send } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
 import type {
   Batch,
@@ -11,6 +11,7 @@ export function BatchesTable({
   batches,
   loading,
   onSelectBatch,
+  onCreateClick,
 }: BatchesTableProps) {
   return (
     <div className="overflow-x-auto border border-border rounded-xl">
@@ -59,9 +60,16 @@ export function BatchesTable({
                 <p className="text-foreground font-medium">
                   No batch sends yet
                 </p>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Use the API to send batch emails
+                <p className="text-muted-foreground text-sm mt-1 mb-4">
+                  Create a campaign to start sending emails
                 </p>
+                <button
+                  onClick={onCreateClick}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  New Campaign
+                </button>
               </td>
             </tr>
           ) : (
