@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   User,
   BarChart3,
@@ -16,6 +16,7 @@ import {
   LogOut,
   Trash2,
   Save,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -56,6 +57,7 @@ export default function SettingsSection() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function SettingsSection() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
+    setSaveSuccess(false);
     try {
       const res = await fetch('/api/settings/profile', {
         method: 'PUT',
@@ -92,10 +95,10 @@ export default function SettingsSection() {
 
       const response = await res.json();
       if (response.success) {
+        setSaveSuccess(true);
         toast.success(
           response.message || 'Profile updated successfully'
         );
-        // Update local state
         if (data) {
           setData({
             ...data,
@@ -105,6 +108,8 @@ export default function SettingsSection() {
             },
           });
         }
+        // Reset success state after animation
+        setTimeout(() => setSaveSuccess(false), 2000);
       } else {
         toast.error(
           response.message || 'Failed to update profile'
@@ -170,22 +175,38 @@ export default function SettingsSection() {
     );
   }
 
+  const usagePercent =
+    (data.usage.emailsToday / data.usage.dailyLimit) * 100;
+
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Tab Navigation with Animated Indicator */}
+      <div className="relative flex gap-1 p-1 bg-secondary/50 rounded-xl w-fit">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors z-10 ${
               activeTab === tab.id
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'bg-transparent text-foreground/70 border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-foreground'
+                ? 'text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {tab.icon}
-            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="activeTabBg"
+                className="absolute inset-0 bg-primary rounded-lg shadow-lg"
+                transition={{
+                  type: 'spring',
+                  stiffness: 500,
+                  damping: 35,
+                }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              {tab.icon}
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>
@@ -199,23 +220,44 @@ export default function SettingsSection() {
       >
         {activeTab === 'profile' && (
           <div className="bg-card border border-border rounded-xl p-6 space-y-6">
+            {/* Avatar with Subtle Ring */}
             <div className="flex items-center gap-4">
-              {data.profile.avatarUrl ? (
-                <img
-                  src={data.profile.avatarUrl}
-                  alt="Avatar"
-                  className="w-16 h-16 rounded-full object-cover border-2 border-border"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center">
-                  <span className="text-xl font-bold text-primary">
-                    {getInitials(
-                      data.profile.name,
-                      data.profile.email
-                    )}
+              <motion.div
+                className="relative group cursor-pointer"
+                whileHover={{ scale: 1.03 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 400,
+                  damping: 17,
+                }}
+              >
+                {/* Subtle Ring - only visible on hover */}
+                <div className="absolute -inset-0.5 bg-primary/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  {data.profile.avatarUrl ? (
+                    <img
+                      src={data.profile.avatarUrl}
+                      alt="Avatar"
+                      className="w-16 h-16 rounded-full object-cover border-2 border-border group-hover:border-primary/50 transition-colors"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-border group-hover:border-primary/50 transition-colors flex items-center justify-center">
+                      <span className="text-xl font-bold text-primary">
+                        {getInitials(
+                          data.profile.name,
+                          data.profile.email
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {/* Hover overlay */}
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white text-xs font-medium">
+                    Edit
                   </span>
                 </div>
-              )}
+              </motion.div>
               <div>
                 <h3 className="text-lg font-semibold text-foreground">
                   {data.profile.name || 'No name set'}
@@ -270,26 +312,68 @@ export default function SettingsSection() {
             </div>
 
             <div className="pt-4 border-t border-border flex justify-end">
-              <button
+              {/* Save Button with Success Animation - Fixed Width */}
+              <motion.button
                 onClick={handleSaveProfile}
                 disabled={
                   saving ||
+                  saveSuccess ||
                   name === (data.profile.name || '')
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`inline-flex items-center justify-center min-w-[140px] px-5 py-2.5 font-medium rounded-lg transition-all disabled:cursor-not-allowed overflow-hidden ${
+                  saveSuccess
+                    ? 'bg-green-500 text-white'
+                    : 'bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50'
+                }`}
+                whileTap={{ scale: 0.98 }}
               >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </>
-                )}
-              </button>
+                <AnimatePresence mode="wait">
+                  {saving ? (
+                    <motion.div
+                      key="saving"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </motion.div>
+                  ) : saveSuccess ? (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{
+                          type: 'spring',
+                          stiffness: 500,
+                          damping: 15,
+                        }}
+                      >
+                        <Check className="w-4 h-4" />
+                      </motion.div>
+                      <span>Saved!</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="save"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Save Changes</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             </div>
           </div>
         )}
@@ -341,12 +425,12 @@ export default function SettingsSection() {
               </div>
             </div>
 
-            {/* Plan Information */}
+            {/* Plan Information with Animated Progress Bar */}
             <div className="bg-card border border-border rounded-xl p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">
                 Current Plan
               </h3>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-bold text-foreground">
@@ -360,40 +444,51 @@ export default function SettingsSection() {
                     {data.usage.dailyLimit} emails per day
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">
-                    Daily Usage
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          (data.usage.emailsToday /
-                            data.usage.dailyLimit) *
-                            100 >=
-                          80
-                            ? 'bg-red-500'
-                            : 'bg-primary'
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            (data.usage.emailsToday /
-                              data.usage.dailyLimit) *
-                              100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm font-mono text-foreground">
-                      {Math.round(
-                        (data.usage.emailsToday /
-                          data.usage.dailyLimit) *
-                          100
-                      )}
-                      %
+                <div className="flex-1 max-w-xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-muted-foreground">
+                      Daily Usage
+                    </p>
+                    <span
+                      className={`text-sm font-mono font-medium ${
+                        usagePercent >= 80
+                          ? 'text-red-500'
+                          : usagePercent >= 50
+                          ? 'text-yellow-500'
+                          : 'text-green-500'
+                      }`}
+                    >
+                      {data.usage.emailsToday} /{' '}
+                      {data.usage.dailyLimit}
                     </span>
                   </div>
+                  {/* Animated Progress Bar */}
+                  <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full ${
+                        usagePercent >= 80
+                          ? 'bg-gradient-to-r from-red-500 to-red-600'
+                          : usagePercent >= 50
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                      }`}
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${Math.min(
+                          usagePercent,
+                          100
+                        )}%`,
+                      }}
+                      transition={{
+                        duration: 1,
+                        ease: 'easeOut',
+                        delay: 0.2,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-right">
+                    {Math.round(usagePercent)}% used
+                  </p>
                 </div>
               </div>
             </div>
@@ -419,12 +514,14 @@ export default function SettingsSection() {
                     </p>
                   </div>
                 </div>
-                <button
+                <motion.button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 font-medium rounded-lg transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   Log Out
-                </button>
+                </motion.button>
               </div>
             </div>
 
@@ -464,7 +561,7 @@ function SettingsSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
       {/* Tabs skeleton */}
-      <div className="flex gap-2">
+      <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl w-fit">
         <div className="h-10 bg-secondary rounded-lg w-24"></div>
         <div className="h-10 bg-secondary rounded-lg w-24"></div>
         <div className="h-10 bg-secondary rounded-lg w-28"></div>
@@ -526,7 +623,15 @@ function StatCard({
   };
 
   return (
-    <div className="flex flex-col items-center p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 transition-colors">
+    <motion.div
+      className="flex flex-col items-center p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 transition-colors"
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{
+        type: 'spring',
+        stiffness: 400,
+        damping: 17,
+      }}
+    >
       <div
         className={`p-2 rounded-lg ${colorClasses[color]} mb-2`}
       >
@@ -538,6 +643,6 @@ function StatCard({
       <span className="text-xs text-muted-foreground text-center">
         {label}
       </span>
-    </div>
+    </motion.div>
   );
 }
