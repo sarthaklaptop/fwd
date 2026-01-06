@@ -13,6 +13,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeft,
+  Settings,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -96,6 +97,13 @@ export default function DashboardSidebar({
       href: '/dashboard/emails',
       icon: (
         <Mail className="h-5 w-5 shrink-0 text-foreground/70" />
+      ),
+    },
+    {
+      label: 'Settings',
+      href: '/dashboard/settings',
+      icon: (
+        <Settings className="h-5 w-5 shrink-0 text-foreground/70" />
       ),
     },
   ];
