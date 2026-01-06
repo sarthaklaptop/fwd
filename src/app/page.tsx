@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { FaNodeJs, FaPython } from 'react-icons/fa';
 import { Header, Footer } from '@/components/landing';
+import { SiGo, SiRuby } from 'react-icons/si';
 
-const codeExamples = {
+const codeExamples: Record<string, string> = {
   curl: `curl -X POST https://api.fwd.email/v1/send \\
   -H "Authorization: Bearer fwd_xxxxx" \\
   -H "Content-Type: application/json" \\
@@ -59,6 +60,50 @@ response = requests.post(
     },
 )
 print("Email sent:", response.json())`,
+
+  go: `package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "net/http"
+)
+
+func main() {
+    payload := map[string]string{
+        "to":      "user@example.com",
+        "subject": "Welcome to FWD! 🎉",
+        "html":    "<h1>Hello!</h1><p>Thanks for joining.</p>",
+    }
+    body, _ := json.Marshal(payload)
+    
+    req, _ := http.NewRequest("POST", 
+        "https://api.fwd.email/v1/send", 
+        bytes.NewBuffer(body))
+    req.Header.Set("Authorization", "Bearer fwd_xxxxx")
+    req.Header.Set("Content-Type", "application/json")
+    
+    http.DefaultClient.Do(req)
+}`,
+
+  ruby: `require 'net/http'
+require 'json'
+
+uri = URI("https://api.fwd.email/v1/send")
+http = Net::HTTP.new(uri.host, uri.port)
+http.use_ssl = true
+
+request = Net::HTTP::Post.new(uri)
+request["Authorization"] = "Bearer fwd_xxxxx"
+request["Content-Type"] = "application/json"
+request.body = {
+  to: "user@example.com",
+  subject: "Welcome to FWD! 🎉",
+  html: "<h1>Hello!</h1><p>Thanks for joining.</p>"
+}.to_json
+
+response = http.request(request)
+puts "Email sent: #{response.body}"`,
 };
 
 const tabs = [
@@ -76,6 +121,16 @@ const tabs = [
     id: 'python',
     label: 'Python',
     icon: <FaPython className="w-4 h-4 text-yellow-500" />,
+  },
+  {
+    id: 'go',
+    label: 'Go',
+    icon: <SiGo className="w-4 h-4 text-cyan-500" />,
+  },
+  {
+    id: 'ruby',
+    label: 'Ruby',
+    icon: <SiRuby className="w-4 h-4 text-red-500" />,
   },
 ];
 
@@ -238,7 +293,7 @@ export default function Home() {
           {/* Code Block with Tabs */}
           <div className="border border-border rounded-2xl overflow-hidden bg-card">
             {/* Tab Bar */}
-            <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+            <div className="grid grid-cols-5 divide-x divide-border border-b border-border">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
