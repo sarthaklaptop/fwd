@@ -588,52 +588,105 @@ async function createBatchAndEmails(
       )
       .returning({ id: emails.id });
 
-    // Queue emails via QStash - fire and forget (don't block response)
+    // Queue emails via QStash with rate limiting - fire and forget (don't block response)
     const baseUrlForQueue = baseUrl;
     const recipientsForQueue = processedRecipients;
     const emailIdsForQueue = emailIds;
     const userIdForQueue = userId;
+    const batchIdForQueue = batch.id;
+
+    // SES Rate Limiting: 14 emails/second
+    // We add incremental delays to each email to spread them over time
+    const SES_RATE_LIMIT = 14; // emails per second
+    const BATCH_CHUNK_SIZE = 50; // Optimal batch size for QStash batchJSON
 
     // Start queuing in background, don't await
     (async () => {
       try {
-        const chunkSize = 50;
+        const totalEmails = emailIdsForQueue.length;
+        const estimatedDuration = Math.ceil(
+          totalEmails / SES_RATE_LIMIT
+        );
+        const totalChunks = Math.ceil(
+          totalEmails / BATCH_CHUNK_SIZE
+        );
+
+        console.log(
+          `📤 Batch ${batchIdForQueue}: Queuing ${totalEmails} emails in ${totalChunks} batch chunks (14/sec, ~${estimatedDuration}s to deliver all)`
+        );
+
+        // Queue emails using batchJSON - much fewer HTTP calls
         for (
           let i = 0;
           i < emailIdsForQueue.length;
-          i += chunkSize
+          i += BATCH_CHUNK_SIZE
         ) {
           const chunkIds = emailIdsForQueue.slice(
             i,
-            i + chunkSize
+            i + BATCH_CHUNK_SIZE
           );
           const chunkRecipients = recipientsForQueue.slice(
             i,
-            i + chunkSize
+            i + BATCH_CHUNK_SIZE
           );
-          await Promise.all(
-            chunkIds.map((record, idx) =>
-              qstash.publishJSON({
-                url: `${baseUrlForQueue}/api/qstash/email`,
+          const chunkNumber =
+            Math.floor(i / BATCH_CHUNK_SIZE) + 1;
+
+          // Build batch messages with staggered delays for SES rate limiting
+          const batchMessages = chunkIds.map(
+            (record, idx) => {
+              const globalIndex = i + idx;
+              const delaySeconds = Math.floor(
+                globalIndex / SES_RATE_LIMIT
+              );
+
+              return {
+                destination: `${baseUrlForQueue}/api/qstash/email`,
                 body: {
                   emailId: record.id,
                   to: chunkRecipients[idx].to,
                   subject: chunkRecipients[idx].subject,
                   html: chunkRecipients[idx].html,
                   text: chunkRecipients[idx].text,
-                  userId: userIdForQueue, // For unsubscribe link generation
+                  userId: userIdForQueue,
                 },
                 retries: 3,
-              })
-            )
+                delay: delaySeconds,
+              };
+            }
           );
+
+          try {
+            // Single HTTP call for up to 50 messages
+            await qstash.batchJSON(batchMessages);
+            console.log(
+              `  📦 Chunk ${chunkNumber}/${totalChunks}: ${chunkIds.length} emails queued`
+            );
+          } catch (batchError) {
+            // Fallback: If batch fails, try individual publishing
+            console.warn(
+              `  ⚠️ Chunk ${chunkNumber} batch failed, falling back to individual publish:`,
+              batchError
+            );
+            await Promise.all(
+              batchMessages.map((msg) =>
+                qstash.publishJSON({
+                  url: msg.destination,
+                  body: msg.body,
+                  retries: msg.retries,
+                  delay: msg.delay,
+                })
+              )
+            );
+          }
         }
+
         console.log(
-          `✅ Batch ${batch.id}: All ${emailIdsForQueue.length} emails queued to QStash`
+          `✅ Batch ${batchIdForQueue}: All ${totalEmails} emails queued to QStash (spread over ~${estimatedDuration}s)`
         );
       } catch (error) {
         console.error(
-          `❌ Batch ${batch.id}: QStash queuing error:`,
+          `❌ Batch ${batchIdForQueue}: QStash queuing error:`,
           error
         );
       }
