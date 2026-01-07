@@ -17,10 +17,11 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (error) {
       toast.error(error.message || 'Failed to sign in');
@@ -54,7 +55,10 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
               Email
             </label>
             <input
@@ -69,9 +73,20 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-foreground"
+              >
+                Password
+              </label>
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
@@ -94,7 +109,10 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-muted-foreground text-sm">
           Don&apos;t have an account?{' '}
-          <Link href="/auth/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
+          <Link
+            href="/auth/signup"
+            className="text-primary hover:text-primary/80 transition-colors font-medium"
+          >
             Create one
           </Link>
         </p>
