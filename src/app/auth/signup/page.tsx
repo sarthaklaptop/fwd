@@ -1,11 +1,143 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail } from 'lucide-react';
+import { Mail, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Password strength calculation
+function calculatePasswordStrength(password: string) {
+  const checks = {
+    length: password.length >= 8,
+    length12: password.length >= 12,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+
+  let score = 0;
+  if (checks.length) score++;
+  if (checks.length12) score++;
+  if (checks.lowercase) score++;
+  if (checks.uppercase) score++;
+  if (checks.number) score++;
+  if (checks.special) score++;
+
+  return { score, checks };
+}
+
+function getStrengthLabel(score: number): {
+  label: string;
+  color: string;
+  bgColor: string;
+} {
+  if (score <= 1)
+    return {
+      label: 'Weak',
+      color: 'text-red-500',
+      bgColor: 'bg-red-500',
+    };
+  if (score <= 3)
+    return {
+      label: 'Fair',
+      color: 'text-orange-500',
+      bgColor: 'bg-orange-500',
+    };
+  if (score <= 5)
+    return {
+      label: 'Good',
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-500',
+    };
+  return {
+    label: 'Strong',
+    color: 'text-green-500',
+    bgColor: 'bg-green-500',
+  };
+}
+
+function PasswordStrengthIndicator({
+  password,
+}: {
+  password: string;
+}) {
+  const { score, checks } = useMemo(
+    () => calculatePasswordStrength(password),
+    [password]
+  );
+  const { label, color, bgColor } = getStrengthLabel(score);
+  const percentage = (score / 6) * 100;
+
+  const requirements = [
+    {
+      key: 'length',
+      label: '8+ characters',
+      met: checks.length,
+    },
+    {
+      key: 'uppercase',
+      label: 'Uppercase letter',
+      met: checks.uppercase,
+    },
+    {
+      key: 'lowercase',
+      label: 'Lowercase letter',
+      met: checks.lowercase,
+    },
+    { key: 'number', label: 'Number', met: checks.number },
+    {
+      key: 'special',
+      label: 'Special character',
+      met: checks.special,
+    },
+  ];
+
+  return (
+    <div className="mt-3 space-y-3">
+      {/* Progress bar */}
+      <div className="space-y-1.5">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">
+            Password strength
+          </span>
+          <span className={`text-xs font-medium ${color}`}>
+            {label}
+          </span>
+        </div>
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+          <div
+            className={`h-full ${bgColor} transition-all duration-300 ease-out rounded-full`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Requirements checklist */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {requirements.map((req) => (
+          <div
+            key={req.key}
+            className={`flex items-center gap-1.5 text-xs ${
+              req.met
+                ? 'text-green-500'
+                : 'text-muted-foreground'
+            }`}
+          >
+            {req.met ? (
+              <Check className="w-3 h-3" />
+            ) : (
+              <X className="w-3 h-3" />
+            )}
+            <span>{req.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -29,7 +161,9 @@ export default function SignupPage() {
     });
 
     if (error) {
-      toast.error(error.message || 'Failed to create account');
+      toast.error(
+        error.message || 'Failed to create account'
+      );
       setLoading(false);
       return;
     }
@@ -69,10 +203,14 @@ export default function SignupPage() {
           <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="w-8 h-8 text-green-500" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Check your email</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Check your email
+          </h1>
           <p className="text-muted-foreground">
             We&apos;ve sent a verification link to{' '}
-            <span className="text-foreground font-medium">{email}</span>
+            <span className="text-foreground font-medium">
+              {email}
+            </span>
           </p>
           <Link
             href="/auth/login"
@@ -107,7 +245,10 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
               Name
             </label>
             <input
@@ -121,7 +262,10 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
               Email
             </label>
             <input
@@ -136,7 +280,10 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-foreground mb-1.5"
+            >
               Password
             </label>
             <input
@@ -149,6 +296,12 @@ export default function SignupPage() {
               minLength={6}
               required
             />
+            {/* Password Strength Indicator */}
+            {password && (
+              <PasswordStrengthIndicator
+                password={password}
+              />
+            )}
           </div>
 
           <button
@@ -156,13 +309,18 @@ export default function SignupPage() {
             disabled={loading}
             className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading
+              ? 'Creating account...'
+              : 'Create account'}
           </button>
         </form>
 
         <p className="mt-6 text-center text-muted-foreground text-sm">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-primary hover:text-primary/80 transition-colors font-medium">
+          <Link
+            href="/auth/login"
+            className="text-primary hover:text-primary/80 transition-colors font-medium"
+          >
             Sign in
           </Link>
         </p>
