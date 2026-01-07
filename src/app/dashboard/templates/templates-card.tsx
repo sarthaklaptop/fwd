@@ -11,6 +11,12 @@ import type {
   TemplateCardProps,
   EmptyStateProps,
 } from './templates-types';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 
 export function TemplateCard({
   template,
@@ -24,29 +30,43 @@ export function TemplateCard({
         <h3 className="text-foreground font-medium truncate">
           {template.name}
         </h3>
-        <div className="flex gap-1">
-          <button
-            onClick={() => onDuplicate(template)}
-            className="inline-flex items-center gap-1 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm p-1 rounded hover:bg-blue-500/10 transition-colors"
-            title="Duplicate template"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onEdit(template)}
-            className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-sm p-1 rounded hover:bg-primary/10 transition-colors"
-            title="Edit template"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(template)}
-            className="inline-flex items-center gap-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm p-1 rounded hover:bg-red-500/10 transition-colors"
-            title="Delete template"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        <TooltipProvider>
+          <div className="flex gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onDuplicate(template)}
+                  className="inline-flex items-center gap-1 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm p-1 rounded hover:bg-blue-500/10 transition-colors"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Duplicate</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onEdit(template)}
+                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-sm p-1 rounded hover:bg-primary/10 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Edit</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onDelete(template)}
+                  className="inline-flex items-center gap-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm p-1 rounded hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
       <p className="text-muted-foreground text-sm truncate mb-2">
         {template.subject}

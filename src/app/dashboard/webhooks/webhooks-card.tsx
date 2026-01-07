@@ -11,6 +11,12 @@ import {
   Check,
 } from 'lucide-react';
 import type { WebhookCardProps } from './webhooks-types';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 
 export function WebhookCard({
   webhook,
@@ -36,127 +42,147 @@ export function WebhookCard({
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1 mr-4">
-          <div className="flex items-start gap-2 mb-2">
-            <h3 className="text-foreground font-mono text-sm break-all flex-1">
-              {webhook.url}
-            </h3>
+    <TooltipProvider>
+      <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 mr-4">
+            <div className="flex items-start gap-2 mb-2">
+              <h3 className="text-foreground font-mono text-sm break-all flex-1">
+                {webhook.url}
+              </h3>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleCopyUrl}
+                    className={`p-1 rounded transition-colors shrink-0 ${
+                      copiedUrl
+                        ? 'text-green-500 dark:text-green-400 bg-green-500/10'
+                        : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    <AnimatePresence
+                      mode="wait"
+                      initial={false}
+                    >
+                      {copiedUrl ? (
+                        <motion.div
+                          key="check"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="copy"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {copiedUrl ? 'Copied!' : 'Copy URL'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {webhook.events.map((event) => (
+                <span
+                  key={event}
+                  className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+                >
+                  {event}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
             <button
-              onClick={handleCopyUrl}
-              className={`p-1 rounded transition-colors shrink-0 ${
-                copiedUrl
-                  ? 'text-green-500 dark:text-green-400 bg-green-500/10'
-                  : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-              }`}
-              title={copiedUrl ? 'Copied!' : 'Copy URL'}
+              onClick={() => onViewLogs(webhook)}
+              className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted transition-colors"
             >
-              <AnimatePresence mode="wait" initial={false}>
-                {copiedUrl ? (
-                  <motion.div
-                    key="check"
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="copy"
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <ClipboardList className="w-4 h-4" />
+              Logs
+            </button>
+            <button
+              onClick={() => onTest(webhook.id)}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm px-2 py-1 rounded hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              <Zap className="w-4 h-4" />
+              Test
+            </button>
+            <button
+              onClick={() => onDelete(webhook)}
+              className="inline-flex items-center gap-1.5 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
             </button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {webhook.events.map((event) => (
-              <span
-                key={event}
-                className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
-              >
-                {event}
-              </span>
-            ))}
-          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onViewLogs(webhook)}
-            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm px-2 py-1 rounded hover:bg-muted transition-colors"
-          >
-            <ClipboardList className="w-4 h-4" />
-            Logs
-          </button>
-          <button
-            onClick={() => onTest(webhook.id)}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm px-2 py-1 rounded hover:bg-primary/10 transition-colors disabled:opacity-50"
-          >
-            <Zap className="w-4 h-4" />
-            Test
-          </button>
-          <button
-            onClick={() => onDelete(webhook)}
-            className="inline-flex items-center gap-1.5 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
-        </div>
-      </div>
 
-      <div className="flex items-center gap-2 bg-transparent rounded-lg px-3 py-2 border border-border">
-        <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
-          Signing Secret:
-        </span>
-        <code className="text-foreground text-sm font-mono select-all">
-          {webhook.secret.slice(0, 8)}...
-          {webhook.secret.slice(-4)}
-        </code>
-        <button
-          onClick={handleCopy}
-          className={`ml-auto p-1.5 rounded transition-colors ${
-            copied
-              ? 'text-green-500 dark:text-green-400 bg-green-500/10'
-              : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-          }`}
-          title={copied ? 'Copied!' : 'Copy Secret'}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            {copied ? (
-              <motion.div
-                key="check"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
+        <div className="flex items-center gap-2 bg-transparent rounded-lg px-3 py-2 border border-border">
+          <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
+            Signing Secret:
+          </span>
+          <code className="text-foreground text-sm font-mono select-all">
+            {webhook.secret.slice(0, 8)}...
+            {webhook.secret.slice(-4)}
+          </code>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleCopy}
+                className={`ml-auto p-1.5 rounded transition-colors ${
+                  copied
+                    ? 'text-green-500 dark:text-green-400 bg-green-500/10'
+                    : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+                }`}
               >
-                <Check className="w-4 h-4" />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="copy"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Copy className="w-4 h-4" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </button>
+                <AnimatePresence
+                  mode="wait"
+                  initial={false}
+                >
+                  {copied ? (
+                    <motion.div
+                      key="check"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Check className="w-4 h-4" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="copy"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {copied ? 'Copied!' : 'Copy Secret'}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
 

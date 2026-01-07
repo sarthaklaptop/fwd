@@ -26,6 +26,12 @@ import type {
   StatusFilterDropdownProps,
 } from './emails-types';
 import { STATUS_OPTIONS } from './emails-types';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 
 export default function EmailsSection() {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -153,18 +159,24 @@ export default function EmailsSection() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end gap-2">
-        <button
-          onClick={() => fetchEmails()}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-primary/10 text-foreground text-sm font-medium rounded-lg border border-border hover:border-primary/30 transition-colors disabled:opacity-50"
-          title="Refresh"
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${
-              loading ? 'animate-spin' : ''
-            }`}
-          />
-        </button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => fetchEmails()}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-primary/10 text-foreground text-sm font-medium rounded-lg border border-border hover:border-primary/30 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${
+                    loading ? 'animate-spin' : ''
+                  }`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh emails</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <button
           onClick={handleExport}
           disabled={exporting}

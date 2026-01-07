@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.956.0",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tabler/icons-react": "^3.36.0",
