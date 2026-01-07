@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 
 // Password strength calculation
@@ -304,15 +305,15 @@ export default function SignupPage() {
             )}
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+            isLoading={loading}
+            className="w-full py-6 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
           >
             {loading
               ? 'Creating account...'
               : 'Create account'}
-          </button>
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-muted-foreground text-sm">

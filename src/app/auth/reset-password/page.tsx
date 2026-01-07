@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, X, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 
 // Password strength calculation (same as signup)
@@ -287,15 +288,16 @@ export default function ResetPasswordPage() {
               )}
           </div>
 
-          <button
+          <Button
             type="submit"
+            isLoading={loading}
             disabled={
               loading || password !== confirmPassword
             }
-            className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+            className="w-full py-6 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
           >
             {loading ? 'Updating...' : 'Update password'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

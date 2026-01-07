@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { TemplateModalProps } from './templates-types';
 import {
@@ -323,35 +324,31 @@ export function TemplateModal({
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button
+          <Button
             onClick={handleSave}
+            isLoading={loading}
             disabled={
-              loading ||
               !name.trim() ||
               !subject.trim() ||
               !html.trim()
             }
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg disabled:opacity-50 transition-all"
+            className="flex-1 rounded-lg"
           >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </>
-            ) : editingTemplate ? (
-              'Update Template'
-            ) : duplicateSource ? (
-              'Duplicate Template'
-            ) : (
-              'Create Template'
-            )}
-          </button>
-          <button
+            {loading
+              ? 'Saving...'
+              : editingTemplate
+              ? 'Update Template'
+              : duplicateSource
+              ? 'Duplicate Template'
+              : 'Create Template'}
+          </Button>
+          <Button
+            variant="outline"
             onClick={onClose}
-            className="px-4 py-2.5 bg-transparent hover:bg-primary/10 text-foreground font-medium rounded-lg border border-border hover:border-primary/30 transition-colors"
+            className="rounded-lg hover:bg-primary/10 hover:border-primary/30"
           >
             Cancel
-          </button>
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-3 text-center">
           <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">

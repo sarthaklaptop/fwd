@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Webhook, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type { WebhookModalProps } from './webhooks-types';
 import { AVAILABLE_EVENTS } from './webhooks-types';
@@ -119,30 +120,23 @@ export function WebhookModal({
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button
+          <Button
             onClick={handleSave}
+            isLoading={loading}
             disabled={
-              loading ||
-              !url.trim() ||
-              selectedEvents.length === 0
+              !url.trim() || selectedEvents.length === 0
             }
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg disabled:opacity-50 transition-all"
+            className="flex-1 rounded-lg"
           >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-                Adding...
-              </>
-            ) : (
-              'Add Endpoint'
-            )}
-          </button>
-          <button
+            {loading ? 'Adding...' : 'Add Endpoint'}
+          </Button>
+          <Button
+            variant="outline"
             onClick={handleClose}
-            className="px-4 py-2.5 bg-transparent hover:bg-primary/10 text-foreground font-medium rounded-lg border border-border hover:border-primary/30 transition-colors"
+            className="rounded-lg hover:bg-primary/10 hover:border-primary/30"
           >
             Cancel
-          </button>
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-3 text-center">
           <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">

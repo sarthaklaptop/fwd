@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ConfirmDialog } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { KeysTable } from './api-keys-table';
@@ -113,23 +114,21 @@ export default function ApiKeysSection({
             e.key === 'Enter' && createKey()
           }
         />
-        <button
+        <Button
           onClick={createKey}
-          disabled={loading || !newKeyName.trim()}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg disabled:opacity-50 transition-all"
+          disabled={!newKeyName.trim()}
+          isLoading={loading}
+          className="h-[42px] px-5 bg-primary hover:bg-primary/90 rounded-lg"
         >
           {loading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-              Creating...
-            </>
+            'Creating...'
           ) : (
             <>
               <Plus className="w-4 h-4" />
               Create Key
             </>
           )}
-        </button>
+        </Button>
         <span className="text-xs text-muted-foreground hidden sm:flex items-center">
           Press{' '}
           <kbd className="mx-1 px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
