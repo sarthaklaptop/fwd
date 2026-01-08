@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
-import {
-  SESClient,
-  SendEmailCommand,
-} from '@aws-sdk/client-ses';
+import { SendEmailCommand } from '@aws-sdk/client-ses';
+import { ses } from '@/lib/ses';
 import { db } from '@/db';
 import { emails, batches } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -11,15 +9,6 @@ import {
   injectOpenTracking,
   injectUnsubscribeLink,
 } from '@/lib/tracking';
-
-// Initialize AWS SES
-const ses = new SESClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
 
 /**
  * Atomically increment batch counter - no race condition possible.
@@ -69,11 +58,29 @@ async function incrementBatchCounter(
   }
 }
 
+const DEFAULT_FROM_EMAIL =
+  process.env.SES_FROM_EMAIL ||
+  'noreply@fwd.sarthak.online';
+
 async function handler(req: NextRequest) {
   const body = await req.json();
-  const { emailId, to, subject, html, text, userId } = body;
+  const {
+    emailId,
+    to,
+    subject,
+    html,
+    text,
+    userId,
+    from,
+    replyTo,
+  } = body;
 
-  console.log(`📧 Processing email ${emailId} to: ${to}`);
+  // Use custom from if provided, otherwise default
+  const fromEmail = from || DEFAULT_FROM_EMAIL;
+
+  console.log(
+    `📧 Processing email ${emailId} to: ${to} from: ${fromEmail}`
+  );
 
   // Get the email record to find batch ID and userId (fallback)
   const emailRecord = await db.query.emails.findFirst({
@@ -117,12 +124,11 @@ async function handler(req: NextRequest) {
 
     // Send via AWS SES with configuration set for bounce/complaint tracking
     const command = new SendEmailCommand({
-      Source:
-        process.env.SES_FROM_EMAIL ||
-        'sarthaklaptop402@gmail.com',
+      Source: fromEmail,
       Destination: {
         ToAddresses: Array.isArray(to) ? to : [to],
       },
+      ReplyToAddresses: replyTo ? [replyTo] : undefined,
       Message: {
         Subject: { Data: subject },
         Body: {

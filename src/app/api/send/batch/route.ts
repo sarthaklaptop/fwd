@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { qstash } from '@/lib/qstash';
-import {
-  SESClient,
-  SendEmailCommand,
-} from '@aws-sdk/client-ses';
+import { SendEmailCommand } from '@aws-sdk/client-ses';
+import { ses } from '@/lib/ses';
 import { db } from '@/db';
 import {
   emails,
@@ -32,14 +30,6 @@ import {
   createBulkLinks,
   prepareLinksForShrnk,
 } from '@/lib/shrnk';
-
-const ses = new SESClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
 
 const BATCH_LIMIT = 500; // Premium feature: max 500 emails per batch
 const DAILY_LIMIT = 100; // Shared with single sends

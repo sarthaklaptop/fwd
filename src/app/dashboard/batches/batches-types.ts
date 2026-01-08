@@ -2,6 +2,7 @@ export interface Batch {
   id: string;
   templateId: string | null;
   templateName: string | null;
+  fromEmail: string | null;
   total: number;
   valid: number;
   suppressed: number;

@@ -44,3 +44,9 @@ next-env.d.ts
 .env
 .env.local
 .env.*
+
+#antigravity
+.antigravity
+.agent
+.agent.**
+!.agent/rules/code-review-guide.md

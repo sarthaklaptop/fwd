@@ -109,6 +109,7 @@ export const batches = pgTable(
     templateId: uuid('template_id').references(
       () => templates.id
     ),
+    fromEmail: varchar('from_email', { length: 500 }),
     total: integer('total').notNull(),
     valid: integer('valid').notNull(),
     suppressed: integer('suppressed').default(0).notNull(),
@@ -139,6 +140,7 @@ export const emails = pgTable(
     userId: uuid('user_id').references(() => users.id),
     batchId: uuid('batch_id').references(() => batches.id),
     to: varchar('to', { length: 255 }).notNull(),
+    fromEmail: varchar('from_email', { length: 500 }),
     subject: varchar('subject', { length: 500 }).notNull(),
     html: text('html'),
     text: text('text'),
@@ -239,6 +241,47 @@ export const webhookEvents = pgTable(
   ]
 );
 
+// Domain status enum
+export const domainStatusEnum = pgEnum('domain_status', [
+  'pending',
+  'verifying',
+  'verified',
+  'failed',
+]);
+
+// Verified domains - Custom sending domains for paid users
+export const domains = pgTable(
+  'domains',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .references(() => users.id)
+      .notNull(),
+    domain: varchar('domain', { length: 255 }).notNull(),
+    status: domainStatusEnum('status')
+      .default('pending')
+      .notNull(),
+    // DKIM tokens from SES (stored as JSON array)
+    dkimTokens: text('dkim_tokens'), // JSON array of 3 tokens
+    // Verification tracking
+    verifiedAt: timestamp('verified_at'),
+    lastCheckAt: timestamp('last_check_at'),
+    createdAt: timestamp('created_at')
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('domains_user_id_idx').on(table.userId),
+    uniqueIndex('domains_user_domain_idx').on(
+      table.userId,
+      table.domain
+    ),
+  ]
+);
+
 // Type inference
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -260,3 +303,5 @@ export type WebhookEvent =
   typeof webhookEvents.$inferSelect;
 export type NewWebhookEvent =
   typeof webhookEvents.$inferInsert;
+export type Domain = typeof domains.$inferSelect;
+export type NewDomain = typeof domains.$inferInsert;

@@ -86,6 +86,17 @@ export function BatchDetailModal({
                 />
               </div>
 
+              {batch.fromEmail && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+                  <span className="text-xs text-muted-foreground">
+                    From:
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {batch.fromEmail}
+                  </span>
+                </div>
+              )}
+
               {(batch.suppressed > 0 ||
                 batch.duplicates > 0) && (
                 <div className="flex gap-4 text-sm">

@@ -19,6 +19,12 @@ interface Template {
   html: string;
 }
 
+interface Domain {
+  id: string;
+  domain: string;
+  status: string;
+}
+
 interface Recipient {
   to: string;
   variables?: Record<string, string>;
@@ -39,6 +45,7 @@ export function CreateCampaignModal({
   const [templates, setTemplates] = useState<Template[]>(
     []
   );
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedTemplate, setSelectedTemplate] =
     useState<Template | null>(null);
   const [recipients, setRecipients] = useState<string>('');
@@ -48,6 +55,12 @@ export function CreateCampaignModal({
   const [previewHtml, setPreviewHtml] = useState<
     string | null
   >(null);
+
+  // From fields
+  const [fromName, setFromName] = useState('');
+  const [fromPrefix, setFromPrefix] = useState('');
+  const [selectedDomain, setSelectedDomain] =
+    useState<Domain | null>(null);
 
   useModalKeyboard({
     onClose,
@@ -59,10 +72,18 @@ export function CreateCampaignModal({
   useEffect(() => {
     if (isOpen) {
       fetchTemplates();
+      fetchDomains();
       setStep(1);
       setSelectedTemplate(null);
       setRecipients('');
       setError(null);
+      // Preserve last used from values (could load from localStorage)
+      const lastFromName =
+        localStorage.getItem('fwd_last_from_name') || '';
+      const lastFromPrefix =
+        localStorage.getItem('fwd_last_from_prefix') || '';
+      setFromName(lastFromName);
+      setFromPrefix(lastFromPrefix);
     }
   }, [isOpen]);
 
@@ -78,6 +99,33 @@ export function CreateCampaignModal({
       console.error('Failed to fetch templates:', err);
     }
     setLoading(false);
+  }
+
+  async function fetchDomains() {
+    try {
+      const res = await fetch('/api/domains');
+      const response = await res.json();
+      if (response.success) {
+        const verifiedDomains = response.data.filter(
+          (d: Domain) => d.status === 'verified'
+        );
+        setDomains(verifiedDomains);
+        // Set first domain as default if not already set
+        if (verifiedDomains.length > 0 && !selectedDomain) {
+          const lastDomainId = localStorage.getItem(
+            'fwd_last_domain_id'
+          );
+          const lastDomain = verifiedDomains.find(
+            (d: Domain) => d.id === lastDomainId
+          );
+          setSelectedDomain(
+            lastDomain || verifiedDomains[0]
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch domains:', err);
+    }
   }
 
   function parseRecipients(): Recipient[] {
@@ -105,11 +153,29 @@ export function CreateCampaignModal({
       return;
     }
 
+    if (!selectedDomain) {
+      setError('Please select a verified domain');
+      return;
+    }
+
+    if (!fromPrefix.trim()) {
+      setError('Please enter a from email address');
+      return;
+    }
+
     const parsedRecipients = parseRecipients();
     if (parsedRecipients.length === 0) {
       setError('Please add at least one recipient');
       return;
     }
+
+    // Build from address
+    const fromEmail = `${fromPrefix.trim()}@${
+      selectedDomain.domain
+    }`;
+    const from = fromName.trim()
+      ? `${fromName.trim()} <${fromEmail}>`
+      : fromEmail;
 
     setSending(true);
     setError(null);
@@ -123,12 +189,27 @@ export function CreateCampaignModal({
         body: JSON.stringify({
           templateId: selectedTemplate.id,
           recipients: parsedRecipients,
+          from,
         }),
       });
 
       const response = await res.json();
 
       if (response.success) {
+        // Save last used values
+        localStorage.setItem(
+          'fwd_last_from_name',
+          fromName
+        );
+        localStorage.setItem(
+          'fwd_last_from_prefix',
+          fromPrefix
+        );
+        localStorage.setItem(
+          'fwd_last_domain_id',
+          selectedDomain.id
+        );
+
         toast.success(
           response.message || 'Campaign sent successfully!'
         );
@@ -230,6 +311,94 @@ export function CreateCampaignModal({
                   ))}
                 </div>
               )}
+
+              {/* From Address Section */}
+              <div className="pt-4 border-t border-border">
+                <h4 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+                  📧 From Address
+                </h4>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      From Name (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={fromName}
+                      onChange={(e) =>
+                        setFromName(e.target.value)
+                      }
+                      placeholder="My Newsletter"
+                      className="w-full px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      From Email *
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={fromPrefix}
+                        onChange={(e) =>
+                          setFromPrefix(
+                            e.target.value.replace(
+                              /[^a-zA-Z0-9._-]/g,
+                              ''
+                            )
+                          )
+                        }
+                        placeholder="newsletter"
+                        className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono"
+                      />
+                      <span className="flex items-center text-muted-foreground text-sm">
+                        @
+                      </span>
+                      <select
+                        value={selectedDomain?.id || ''}
+                        onChange={(e) => {
+                          const domain = domains.find(
+                            (d) => d.id === e.target.value
+                          );
+                          setSelectedDomain(domain || null);
+                        }}
+                        className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono appearance-none cursor-pointer"
+                      >
+                        {domains.length === 0 ? (
+                          <option value="">
+                            No verified domains
+                          </option>
+                        ) : (
+                          domains.map((domain) => (
+                            <option
+                              key={domain.id}
+                              value={domain.id}
+                            >
+                              {domain.domain}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                    {domains.length === 0 && (
+                      <p className="text-xs text-yellow-500 mt-1">
+                        ⚠️ Add and verify a domain in the
+                        Domains section first
+                      </p>
+                    )}
+                    {selectedDomain && fromPrefix && (
+                      <p className="text-xs text-green-500 mt-1">
+                        ✓ Will send from:{' '}
+                        {fromName
+                          ? `${fromName} <${fromPrefix}@${selectedDomain.domain}>`
+                          : `${fromPrefix}@${selectedDomain.domain}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

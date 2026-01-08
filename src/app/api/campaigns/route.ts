@@ -21,18 +21,8 @@ import {
   prepareLinksForShrnk,
 } from '@/lib/shrnk';
 import { qstash } from '@/lib/qstash';
-import {
-  SESClient,
-  SendEmailCommand,
-} from '@aws-sdk/client-ses';
-
-const ses = new SESClient({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+import { ses } from '@/lib/ses';
+import { SendEmailCommand } from '@aws-sdk/client-ses';
 
 const BATCH_LIMIT = 500;
 const DAILY_LIMIT = 100;
@@ -56,7 +46,13 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { templateId, recipients } = body;
+  const { templateId, recipients, from } = body;
+
+  // Default from email if not provided
+  const fromAddress =
+    from ||
+    process.env.SES_FROM_EMAIL ||
+    'noreply@fwd.sarthak.online';
 
   if (
     !templateId ||
@@ -184,6 +180,7 @@ export async function POST(req: Request) {
     .values({
       userId: user.id,
       templateId,
+      fromEmail: fromAddress,
       total: recipients.length,
       valid: finalRecipients.length,
       suppressed: suppressedSet.size,
@@ -222,7 +219,8 @@ export async function POST(req: Request) {
   // Insert emails with tracked links and get IDs
   const isProd = !!process.env.VERCEL;
   const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000';
 
   if (isProd) {
     // PROD: Insert and only return IDs for fast response
@@ -233,6 +231,7 @@ export async function POST(req: Request) {
           userId: user.id,
           batchId: batch.id,
           to: r.to,
+          fromEmail: fromAddress,
           subject: r.subject,
           html: r.html,
           status: 'pending' as const,
@@ -245,7 +244,11 @@ export async function POST(req: Request) {
     (async () => {
       try {
         const chunkSize = 50;
-        for (let i = 0; i < emailIds.length; i += chunkSize) {
+        for (
+          let i = 0;
+          i < emailIds.length;
+          i += chunkSize
+        ) {
           const chunkIds = emailIds.slice(i, i + chunkSize);
           const chunkRecipients = processedRecipients.slice(
             i,
@@ -261,6 +264,7 @@ export async function POST(req: Request) {
                   subject: chunkRecipients[idx].subject,
                   html: chunkRecipients[idx].html,
                   userId: userIdForQueue,
+                  from: fromAddress,
                 },
                 retries: 3,
               })
@@ -298,6 +302,7 @@ export async function POST(req: Request) {
         userId: user.id,
         batchId: batch.id,
         to: r.to,
+        fromEmail: fromAddress,
         subject: r.subject,
         html: r.html,
         status: 'pending' as const,
@@ -337,13 +342,14 @@ export async function POST(req: Request) {
       }
 
       const command = new SendEmailCommand({
-        Source:
-          process.env.SES_FROM_EMAIL || 'sarthaklaptop402@gmail.com',
+        Source: fromAddress,
         Destination: { ToAddresses: [record.to] },
         Message: {
           Subject: { Data: record.subject },
           Body: {
-            Html: processedHtml ? { Data: processedHtml } : undefined,
+            Html: processedHtml
+              ? { Data: processedHtml }
+              : undefined,
           },
         },
         ConfigurationSetName: 'fwd-notifications',
@@ -365,7 +371,10 @@ export async function POST(req: Request) {
       console.log(`  ✓ Sent to ${record.to}`);
     } catch (error: any) {
       failCount++;
-      console.error(`  ✗ Failed to send to ${record.to}:`, error.message);
+      console.error(
+        `  ✗ Failed to send to ${record.to}:`,
+        error.message
+      );
 
       await db
         .update(emails)

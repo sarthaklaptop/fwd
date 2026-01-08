@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Settings,
+  Globe,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -69,6 +70,13 @@ export default function DashboardSidebar({
       href: '/dashboard/api-keys',
       icon: (
         <Key className="h-5 w-5 shrink-0 text-foreground/70" />
+      ),
+    },
+    {
+      label: 'Domains',
+      href: '/dashboard/domains',
+      icon: (
+        <Globe className="h-5 w-5 shrink-0 text-foreground/70" />
       ),
     },
     {

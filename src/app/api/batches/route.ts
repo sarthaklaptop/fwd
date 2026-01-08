@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     .select({
       id: batches.id,
       templateId: batches.templateId,
+      fromEmail: batches.fromEmail,
       total: batches.total,
       valid: batches.valid,
       suppressed: batches.suppressed,
@@ -36,6 +37,8 @@ export async function GET(req: NextRequest) {
       queued: batches.queued,
       completed: batches.completed,
       failed: batches.failed,
+      opened: batches.opened,
+      clicked: batches.clicked,
       status: batches.status,
       createdAt: batches.createdAt,
     })
