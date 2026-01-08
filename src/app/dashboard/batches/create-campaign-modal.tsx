@@ -57,6 +57,8 @@ export function CreateCampaignModal({
   const [previewHtml, setPreviewHtml] = useState<
     string | null
   >(null);
+  const [templateVariables, setTemplateVariables] =
+    useState<string[]>([]);
 
   // From fields
   const [fromName, setFromName] = useState('');
@@ -161,6 +163,35 @@ export function CreateCampaignModal({
     }
   }
 
+  // Extract template variables like {{name}}, {{organization}} from HTML
+  function extractTemplateVariables(
+    html: string
+  ): string[] {
+    const regex = /\{\{(\w+)\}\}/g;
+    const variables = new Set<string>();
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      variables.add(match[1]);
+    }
+    return Array.from(variables);
+  }
+
+  // Handle template selection and extract variables from subject + HTML
+  function handleTemplateSelect(template: Template) {
+    setSelectedTemplate(template);
+    // Extract from both subject and HTML, remove duplicates
+    const subjectVars = extractTemplateVariables(
+      template.subject
+    );
+    const htmlVars = extractTemplateVariables(
+      template.html
+    );
+    const allVars = [
+      ...new Set([...subjectVars, ...htmlVars]),
+    ];
+    setTemplateVariables(allVars);
+  }
+
   function parseRecipients(): Recipient[] {
     const lines = recipients
       .trim()
@@ -171,13 +202,33 @@ export function CreateCampaignModal({
       const to = parts[0];
       const variables: Record<string, string> = {};
 
-      // Parse name if provided (format: email,name)
-      if (parts[1]) {
-        variables.name = parts[1];
-      }
+      // Map CSV columns to detected template variables
+      templateVariables.forEach((varName, index) => {
+        if (parts[index + 1]) {
+          variables[varName] = parts[index + 1];
+        }
+      });
 
       return { to, variables };
     });
+  }
+
+  // Check for recipients with missing variable columns
+  function getMissingVariablesCount(): number {
+    if (templateVariables.length === 0) return 0;
+    const lines = recipients
+      .trim()
+      .split('\n')
+      .filter((line) => line.trim());
+    const expectedColumns = templateVariables.length + 1; // email + variables
+    return lines.filter((line) => {
+      const parts = line.split(',').map((p) => p.trim());
+      return (
+        parts.length > 0 &&
+        parts[0] &&
+        parts.length < expectedColumns
+      );
+    }).length;
   }
 
   async function handleSend() {
@@ -326,7 +377,7 @@ export function CreateCampaignModal({
                     <button
                       key={template.id}
                       onClick={() =>
-                        setSelectedTemplate(template)
+                        handleTemplateSelect(template)
                       }
                       className={`p-4 rounded-lg border text-left transition-all ${
                         selectedTemplate?.id === template.id
@@ -489,19 +540,67 @@ export function CreateCampaignModal({
                 <Users className="w-4 h-4" />
                 Add Recipients
               </h4>
-              <p className="text-sm text-muted-foreground">
-                Enter email addresses, one per line.
-                Optionally add name after comma
-                (email,name).
-              </p>
+
+              {/* Dynamic format instructions based on template variables */}
+              {templateVariables.length > 0 ? (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>
+                    Enter one recipient per line using
+                    format:{' '}
+                    <span className="text-foreground font-mono">
+                      email, {templateVariables.join(', ')}
+                    </span>
+                  </p>
+                  <p className="text-xs">
+                    Example: john@acme.com,{' '}
+                    {templateVariables
+                      .map((v, i) =>
+                        i === 0
+                          ? 'John'
+                          : `${
+                              v.charAt(0).toUpperCase() +
+                              v.slice(1)
+                            } Value`
+                      )
+                      .join(', ')}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Enter email addresses, one per line.
+                </p>
+              )}
+
               <textarea
                 value={recipients}
                 onChange={(e) =>
                   setRecipients(e.target.value)
                 }
-                placeholder="john@example.com,John Doe
-jane@example.com,Jane Smith
-user@example.com"
+                placeholder={
+                  templateVariables.length > 0
+                    ? `john@example.com, ${templateVariables
+                        .map((v, i) =>
+                          i === 0
+                            ? 'John Doe'
+                            : `${
+                                v.charAt(0).toUpperCase() +
+                                v.slice(1)
+                              } Value`
+                        )
+                        .join(
+                          ', '
+                        )}\njane@example.com, ${templateVariables
+                        .map((v, i) =>
+                          i === 0
+                            ? 'Jane Smith'
+                            : `Another ${
+                                v.charAt(0).toUpperCase() +
+                                v.slice(1)
+                              }`
+                        )
+                        .join(', ')}`
+                    : `john@example.com\njane@example.com`
+                }
                 className="w-full h-48 px-4 py-3 bg-secondary/30 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-foreground placeholder:text-muted-foreground font-mono text-sm"
               />
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -511,6 +610,12 @@ user@example.com"
                   detected
                 </span>
               </div>
+              {getMissingVariablesCount() > 0 && (
+                <p className="text-xs text-yellow-500">
+                  ⚠️ {getMissingVariablesCount()}{' '}
+                  recipient(s) missing variable values
+                </p>
+              )}
             </div>
           )}
 
