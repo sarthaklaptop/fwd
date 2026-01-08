@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Globe,
   Copy,
@@ -9,6 +9,8 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -32,6 +34,8 @@ export function DomainCard({
   const [expanded, setExpanded] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] =
+    useState(false);
   const [copiedRecord, setCopiedRecord] = useState<
     string | null
   >(null);
@@ -43,15 +47,24 @@ export function DomainCard({
   };
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        `Delete ${domain.domain}? This cannot be undone.`
-      )
-    )
-      return;
     setDeleting(true);
     await onDelete(domain.id);
+    setShowDeleteConfirm(false);
+    setDeleting(false);
   };
+
+  // Close delete dialog on Escape key
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleting) {
+        setShowDeleteConfirm(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () =>
+      document.removeEventListener('keydown', handleEscape);
+  }, [showDeleteConfirm, deleting]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -133,13 +146,81 @@ export function DomainCard({
         <Button
           variant="outline"
           size="sm"
-          onClick={handleDelete}
+          onClick={() => setShowDeleteConfirm(true)}
           disabled={deleting}
           className="rounded-lg text-red-500 hover:text-red-600 hover:border-red-500/50"
         >
-          <Trash2 className="w-4 h-4" />
+          {deleting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4" />
+          )}
         </Button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in"
+          onClick={() =>
+            !deleting && setShowDeleteConfirm(false)
+          }
+        >
+          <div
+            className="bg-card border border-border rounded-xl p-6 max-w-sm mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Delete Domain
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {domain.domain}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              This action cannot be undone. The domain will
+              be removed from AWS SES and all associated DNS
+              records will need to be reconfigured if you
+              add it again.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="rounded-lg"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-lg bg-red-500 hover:bg-red-600 text-white"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Domain
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DNS Records */}
       {expanded && (

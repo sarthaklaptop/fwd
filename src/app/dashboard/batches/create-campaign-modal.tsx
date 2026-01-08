@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Upload,
@@ -8,6 +8,8 @@ import {
   FileText,
   Users,
   Eye,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
@@ -61,6 +63,34 @@ export function CreateCampaignModal({
   const [fromPrefix, setFromPrefix] = useState('');
   const [selectedDomain, setSelectedDomain] =
     useState<Domain | null>(null);
+  const [domainDropdownOpen, setDomainDropdownOpen] =
+    useState(false);
+  const [domainsLoading, setDomainsLoading] =
+    useState(false);
+  const domainDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close domain dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        domainDropdownRef.current &&
+        !domainDropdownRef.current.contains(
+          event.target as Node
+        )
+      ) {
+        setDomainDropdownOpen(false);
+      }
+    }
+    document.addEventListener(
+      'mousedown',
+      handleClickOutside
+    );
+    return () =>
+      document.removeEventListener(
+        'mousedown',
+        handleClickOutside
+      );
+  }, []);
 
   useModalKeyboard({
     onClose,
@@ -102,6 +132,7 @@ export function CreateCampaignModal({
   }
 
   async function fetchDomains() {
+    setDomainsLoading(true);
     try {
       const res = await fetch('/api/domains');
       const response = await res.json();
@@ -125,6 +156,8 @@ export function CreateCampaignModal({
       }
     } catch (err) {
       console.error('Failed to fetch domains:', err);
+    } finally {
+      setDomainsLoading(false);
     }
   }
 
@@ -230,7 +263,7 @@ export function CreateCampaignModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -255,7 +288,7 @@ export function CreateCampaignModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
+        <div className="p-6 overflow-y-auto overflow-x-visible max-h-[calc(85vh-140px)] flex-1">
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
               {error}
@@ -356,31 +389,78 @@ export function CreateCampaignModal({
                       <span className="flex items-center text-muted-foreground text-sm">
                         @
                       </span>
-                      <select
-                        value={selectedDomain?.id || ''}
-                        onChange={(e) => {
-                          const domain = domains.find(
-                            (d) => d.id === e.target.value
-                          );
-                          setSelectedDomain(domain || null);
-                        }}
-                        className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono appearance-none cursor-pointer"
+                      <div
+                        className="relative flex-1"
+                        ref={domainDropdownRef}
                       >
-                        {domains.length === 0 ? (
-                          <option value="">
-                            No verified domains
-                          </option>
-                        ) : (
-                          domains.map((domain) => (
-                            <option
-                              key={domain.id}
-                              value={domain.id}
-                            >
-                              {domain.domain}
-                            </option>
-                          ))
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDomainDropdownOpen(
+                              !domainDropdownOpen
+                            )
+                          }
+                          className="w-full min-w-[140px] flex items-center justify-between gap-2 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground text-sm font-mono hover:bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                        >
+                          <span
+                            className={
+                              selectedDomain
+                                ? 'text-foreground'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {domainsLoading
+                              ? 'Loading...'
+                              : selectedDomain?.domain ||
+                                'Select domain'}
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 text-muted-foreground transition-transform ${
+                              domainDropdownOpen
+                                ? 'rotate-180'
+                                : ''
+                            }`}
+                          />
+                        </button>
+                        {domainDropdownOpen && (
+                          <div className="absolute left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 py-1 animate-fade-in max-h-48 overflow-auto">
+                            {domains.length === 0 ? (
+                              <div className="px-3 py-2 text-sm text-muted-foreground">
+                                No verified domains
+                              </div>
+                            ) : (
+                              domains.map((domain) => (
+                                <button
+                                  key={domain.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDomain(
+                                      domain
+                                    );
+                                    setDomainDropdownOpen(
+                                      false
+                                    );
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-sm font-mono text-left transition-colors ${
+                                    selectedDomain?.id ===
+                                    domain.id
+                                      ? 'bg-primary/10 text-primary'
+                                      : 'text-foreground hover:bg-secondary/50'
+                                  }`}
+                                >
+                                  <span>
+                                    {domain.domain}
+                                  </span>
+                                  {selectedDomain?.id ===
+                                    domain.id && (
+                                    <Check className="w-4 h-4" />
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
                         )}
-                      </select>
+                      </div>
                     </div>
                     {domains.length === 0 && (
                       <p className="text-xs text-yellow-500 mt-1">
