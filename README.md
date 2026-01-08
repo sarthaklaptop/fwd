@@ -75,7 +75,7 @@ flowchart LR
     QUEUE -->|"Dequeue"| WORKER
     WORKER -->|"Send Email"| SES
     SES --> INBOX
-    
+
     SES -->|"Delivery Events"| SNS
     SNS -->|"Bounce/Complaint\nNotifications"| WEBHOOK
     WEBHOOK -->|"Update Status"| DB
@@ -124,19 +124,30 @@ High Traffic → API → Queue (Buffer) → Worker → SES
 
 Fwd automatically instruments your emails for analytics:
 
-| Feature | How It Works |
-|---------|--------------|
-| **Open Tracking** | Injects a 1x1 transparent tracking pixel |
-| **Click Tracking** | Rewrites URLs through Fwd's redirect endpoint |
-| **Bounce Handling** | Captures SES bounce notifications via SNS |
+| Feature                | How It Works                                     |
+| ---------------------- | ------------------------------------------------ |
+| **Open Tracking**      | Injects a 1x1 transparent tracking pixel         |
+| **Click Tracking**     | Rewrites URLs through Fwd's redirect endpoint    |
+| **Bounce Handling**    | Captures SES bounce notifications via SNS        |
 | **Complaint Tracking** | Logs spam complaints for deliverability insights |
+
+### 🌐 Custom Sender Domains
+
+Enhance deliverability with verified sender domains:
+
+| Feature                 | Description                                              |
+| ----------------------- | -------------------------------------------------------- |
+| **Domain Verification** | AWS SES DKIM integration with auto-generated DNS records |
+| **Custom From Address** | Send as `hello@yourdomain.com` instead of system email   |
+| **SPF/DKIM Signing**    | Improve inbox placement with proper authentication       |
+| **Domain Limit**        | Up to 5 verified domains per account                     |
 
 ### 🧑‍💻 Developer Experience
 
 - **Typed SDK** — Full TypeScript support with autocomplete
 - **Intuitive REST API** — Simple, predictable endpoints
 - **Webhook Events** — Real-time event streaming for integrations
-- **Dashboard Ready** — Built-in UI for monitoring (coming soon)
+- **Dashboard UI** — Built-in monitoring for campaigns, templates, and domains
 
 ---
 
@@ -146,12 +157,12 @@ Fwd automatically instruments your emails for analytics:
 
 Before you begin, ensure you have the following:
 
-| Requirement | Version | Purpose |
-|-------------|---------|---------|
-| Node.js | ≥ 18.x | Runtime |
-| Redis | ≥ 7.x | Job Queue |
-| PostgreSQL | ≥ 15.x | Database |
-| AWS Account | — | SES & SNS |
+| Requirement | Version | Purpose   |
+| ----------- | ------- | --------- |
+| Node.js     | ≥ 18.x  | Runtime   |
+| Redis       | ≥ 7.x   | Job Queue |
+| PostgreSQL  | ≥ 15.x  | Database  |
+| AWS Account | —       | SES & SNS |
 
 ### Environment Variables
 
@@ -180,6 +191,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/fwd
 # ═══════════════════════════════════════════════════════
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 FWD_API_KEY=your_secret_api_key
+
+# ═══════════════════════════════════════════════════════
+# 📧 Email Configuration
+# ═══════════════════════════════════════════════════════
+SES_FROM_EMAIL=noreply@yourdomain.com
 ```
 
 ### Installation
@@ -225,16 +241,16 @@ POST /api/send
 
 #### Request Headers
 
-| Header | Type | Required | Description |
-|--------|------|----------|-------------|
-| `Authorization` | `string` | ✅ | Bearer token: `Bearer <FWD_API_KEY>` |
-| `Content-Type` | `string` | ✅ | Must be `application/json` |
+| Header          | Type     | Required | Description                          |
+| --------------- | -------- | -------- | ------------------------------------ |
+| `Authorization` | `string` | ✅       | Bearer token: `Bearer <FWD_API_KEY>` |
+| `Content-Type`  | `string` | ✅       | Must be `application/json`           |
 
 #### Request Body
 
 ```json
 {
-  "from": "Acme Inc <hello@acme.com>",
+  "from": "Acme Inc <hello@verified-domain.com>",
   "to": ["user@example.com"],
   "subject": "Welcome to Acme! 🚀",
   "html": "<h1>Hello World</h1><p>Thanks for signing up!</p>",
@@ -262,13 +278,13 @@ POST /api/send
 
 #### Status Codes
 
-| Code | Description |
-|------|-------------|
-| `200` | Email successfully queued |
-| `400` | Invalid request body |
+| Code  | Description                |
+| ----- | -------------------------- |
+| `200` | Email successfully queued  |
+| `400` | Invalid request body       |
 | `401` | Missing or invalid API key |
-| `429` | Rate limit exceeded |
-| `500` | Internal server error |
+| `429` | Rate limit exceeded        |
+| `500` | Internal server error      |
 
 #### cURL Example
 
@@ -288,16 +304,16 @@ curl -X POST http://localhost:3000/api/send \
 
 ## 🧠 System Design Highlights
 
-> *This section explains the architectural decisions for technical reviewers and recruiters.*
+> _This section explains the architectural decisions for technical reviewers and recruiters._
 
 ### Why Redis + BullMQ?
 
-| Challenge | Solution |
-|-----------|----------|
-| **Traffic Spikes** | Queue absorbs bursts; workers process at a sustainable rate |
-| **Network Failures** | Jobs persist in Redis; automatic retry with backoff |
-| **Decoupling** | API responds instantly; heavy lifting happens async |
-| **Observability** | BullMQ provides job status, progress, and failure logs |
+| Challenge            | Solution                                                    |
+| -------------------- | ----------------------------------------------------------- |
+| **Traffic Spikes**   | Queue absorbs bursts; workers process at a sustainable rate |
+| **Network Failures** | Jobs persist in Redis; automatic retry with backoff         |
+| **Decoupling**       | API responds instantly; heavy lifting happens async         |
+| **Observability**    | BullMQ provides job status, progress, and failure logs      |
 
 ```
 Without Queue:  Client → API → SES (blocks)     → Response
@@ -308,12 +324,12 @@ With Queue:     Client → API → Queue → Response (instant)
 
 ### Why AWS SES Over SMTP?
 
-| Feature | AWS SES | Traditional SMTP |
-|---------|---------|------------------|
-| **Deliverability** | Enterprise-grade reputation | Depends on server |
-| **Scalability** | 50,000+ emails/sec | Limited by server |
-| **Feedback Loops** | Native SNS integration | Manual setup |
-| **Cost** | $0.10 per 1,000 emails | Server + maintenance |
+| Feature            | AWS SES                     | Traditional SMTP     |
+| ------------------ | --------------------------- | -------------------- |
+| **Deliverability** | Enterprise-grade reputation | Depends on server    |
+| **Scalability**    | 50,000+ emails/sec          | Limited by server    |
+| **Feedback Loops** | Native SNS integration      | Manual setup         |
+| **Cost**           | $0.10 per 1,000 emails      | Server + maintenance |
 
 ### Why Tracking Pixel & Link Rewriting?
 
@@ -332,12 +348,12 @@ Rewritten:  <a href="https://fwd.app/r/abc123">Click</a>
 
 ### Why Next.js 14 App Router?
 
-| Benefit | Implementation |
-|---------|----------------|
-| **API Routes** | Colocated with frontend for rapid iteration |
-| **Server Components** | Dashboard renders on server for performance |
-| **Edge Ready** | API routes can deploy to edge for lower latency |
-| **Type Safety** | End-to-end TypeScript from API to client |
+| Benefit               | Implementation                                  |
+| --------------------- | ----------------------------------------------- |
+| **API Routes**        | Colocated with frontend for rapid iteration     |
+| **Server Components** | Dashboard renders on server for performance     |
+| **Edge Ready**        | API routes can deploy to edge for lower latency |
+| **Type Safety**       | End-to-end TypeScript from API to client        |
 
 ---
 
@@ -347,11 +363,14 @@ Rewritten:  <a href="https://fwd.app/r/abc123">Click</a>
 - [x] Redis queue integration
 - [x] Open & click tracking
 - [x] AWS SNS webhook handling
-- [ ] Dashboard UI for analytics
-- [ ] PostgreSQL + Drizzle ORM integration
-- [ ] Rate limiting per API key
-- [ ] Email templates management
+- [x] Dashboard UI for campaigns & analytics
+- [x] PostgreSQL + Drizzle ORM integration
+- [x] Rate limiting per API key
+- [x] Email templates management
+- [x] Custom domain verification (DKIM/SPF)
+- [x] Custom sender email addresses
 - [ ] Multi-tenant support
+- [ ] Billing & subscription tiers
 
 ---
 
@@ -368,7 +387,6 @@ git push origin feature/your-feature
 ```
 
 ---
-
 
 <p align="center">
   <strong>Built with ☕ and a passion for infrastructure</strong>
