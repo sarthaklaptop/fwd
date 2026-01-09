@@ -33,6 +33,11 @@ export default function BatchesSection() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] =
     useState(false);
+  const [duplicateFrom, setDuplicateFrom] = useState<{
+    templateId: string;
+    fromEmail: string;
+    batchId: string;
+  } | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -112,6 +117,17 @@ export default function BatchesSection() {
     fetchBatches();
   }
 
+  function handleDuplicate(batch: BatchDetail) {
+    setSelectedBatch(null);
+    setPendingBatchId(null);
+    setDuplicateFrom({
+      templateId: batch.templateId || '',
+      fromEmail: batch.fromEmail || '',
+      batchId: batch.id,
+    });
+    setShowCreateModal(true);
+  }
+
   const pendingBatch = pendingBatchId
     ? batches.find((b) => b.id === pendingBatchId)
     : null;
@@ -171,12 +187,17 @@ export default function BatchesSection() {
           pendingBatch={pendingBatch}
           loading={detailLoading}
           onClose={closeModal}
+          onDuplicate={handleDuplicate}
         />
       )}
 
       <CreateCampaignModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        duplicateFrom={duplicateFrom}
+        onClose={() => {
+          setShowCreateModal(false);
+          setDuplicateFrom(null);
+        }}
         onSuccess={handleCampaignSuccess}
       />
     </div>

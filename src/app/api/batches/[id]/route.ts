@@ -53,6 +53,7 @@ export async function GET(
       to: emails.to,
       subject: emails.subject,
       status: emails.status,
+      variables: emails.variables,
       openedAt: emails.openedAt,
       clickedAt: emails.clickedAt,
       createdAt: emails.createdAt,

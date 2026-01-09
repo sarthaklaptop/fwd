@@ -10,6 +10,8 @@ import {
   Eye,
   ChevronDown,
   Check,
+  Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
@@ -34,12 +36,18 @@ interface Recipient {
 
 interface CreateCampaignModalProps {
   isOpen: boolean;
+  duplicateFrom?: {
+    templateId: string;
+    fromEmail: string;
+    batchId: string;
+  } | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export function CreateCampaignModal({
   isOpen,
+  duplicateFrom,
   onClose,
   onSuccess,
 }: CreateCampaignModalProps) {
@@ -70,6 +78,21 @@ export function CreateCampaignModal({
   const [domainsLoading, setDomainsLoading] =
     useState(false);
   const domainDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Duplicate mode state
+  const [loadPrevRecipients, setLoadPrevRecipients] =
+    useState(false);
+  const [prevRecipientsLoading, setPrevRecipientsLoading] =
+    useState(false);
+  const [prevRecipientCount, setPrevRecipientCount] =
+    useState(0);
+  const [duplicatePrefilling, setDuplicatePrefilling] =
+    useState(false);
+  // Cache batch emails to avoid duplicate API calls
+  const cachedBatchEmails = useRef<Array<{
+    to: string;
+    variables?: string;
+  }> | null>(null);
 
   // Click outside to close domain dropdown
   useEffect(() => {
@@ -109,15 +132,143 @@ export function CreateCampaignModal({
       setSelectedTemplate(null);
       setRecipients('');
       setError(null);
-      // Preserve last used from values (could load from localStorage)
-      const lastFromName =
-        localStorage.getItem('fwd_last_from_name') || '';
-      const lastFromPrefix =
-        localStorage.getItem('fwd_last_from_prefix') || '';
-      setFromName(lastFromName);
-      setFromPrefix(lastFromPrefix);
+      setLoadPrevRecipients(false);
+      setPrevRecipientCount(0);
+      setTemplateVariables([]);
+      cachedBatchEmails.current = null;
+
+      // If not duplicating, use last used values
+      if (!duplicateFrom) {
+        const lastFromName =
+          localStorage.getItem('fwd_last_from_name') || '';
+        const lastFromPrefix =
+          localStorage.getItem('fwd_last_from_prefix') ||
+          '';
+        setFromName(lastFromName);
+        setFromPrefix(lastFromPrefix);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, duplicateFrom]);
+
+  // Pre-fill when duplicating (after templates/domains load)
+  useEffect(() => {
+    if (
+      !isOpen ||
+      !duplicateFrom ||
+      templates.length === 0 ||
+      domains.length === 0
+    )
+      return;
+
+    // Capture values for closure (fixes TypeScript null checks)
+    const dupFrom = duplicateFrom;
+
+    // Prevent duplicate runs
+    let cancelled = false;
+
+    async function prefillDuplicateData() {
+      setDuplicatePrefilling(true);
+
+      // Find and select the template
+      const template = templates.find(
+        (t) => t.id === dupFrom.templateId
+      );
+      if (template && !cancelled) {
+        setSelectedTemplate(template);
+        const subjectVars = extractTemplateVariables(
+          template.subject
+        );
+        const htmlVars = extractTemplateVariables(
+          template.html
+        );
+        const allVars = [
+          ...new Set([...subjectVars, ...htmlVars]),
+        ];
+        setTemplateVariables(allVars);
+      }
+
+      // Parse and set from address
+      if (dupFrom.fromEmail && !cancelled) {
+        const emailMatch = dupFrom.fromEmail.match(
+          /<(.+)>/
+        ) || [null, dupFrom.fromEmail];
+        const email = emailMatch[1] || dupFrom.fromEmail;
+        const [prefix, domainPart] = email.split('@');
+
+        const nameMatch =
+          dupFrom.fromEmail.match(/^(.+?)\s*</);
+        if (nameMatch) {
+          setFromName(nameMatch[1].trim());
+        }
+
+        setFromPrefix(prefix);
+        const matchedDomain = domains.find(
+          (d) => d.domain === domainPart
+        );
+        if (matchedDomain) setSelectedDomain(matchedDomain);
+      }
+
+      // Fetch and cache batch emails (single API call)
+      if (dupFrom.batchId && !cancelled) {
+        try {
+          const res = await fetch(
+            `/api/batches/${dupFrom.batchId}`
+          );
+          const data = await res.json();
+          if (
+            data.success &&
+            data.data.emails &&
+            !cancelled
+          ) {
+            cachedBatchEmails.current = data.data.emails;
+            setPrevRecipientCount(data.data.emails.length);
+          }
+        } catch (err) {
+          console.error('Failed to fetch batch data:', err);
+        }
+      }
+
+      if (!cancelled) setDuplicatePrefilling(false);
+    }
+
+    prefillDuplicateData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, duplicateFrom, templates, domains]);
+
+  // Load recipients from cache (no duplicate API call)
+  function loadOriginalRecipients() {
+    if (!cachedBatchEmails.current) return;
+    setPrevRecipientsLoading(true);
+
+    const emailList = cachedBatchEmails.current
+      .map((e) => {
+        let vars: Record<string, string> = {};
+        if (e.variables) {
+          try {
+            vars = JSON.parse(e.variables);
+          } catch {
+            /* ignore */
+          }
+        }
+
+        if (
+          templateVariables.length > 0 &&
+          Object.keys(vars).length > 0
+        ) {
+          const varValues = templateVariables
+            .map((v) => vars[v] || '')
+            .join(', ');
+          return `${e.to}, ${varValues}`;
+        }
+        return e.to;
+      })
+      .join('\n');
+    setRecipients(emailList);
+    setPrevRecipientsLoading(false);
+  }
 
   async function fetchTemplates() {
     setLoading(true);
@@ -540,6 +691,54 @@ export function CreateCampaignModal({
                 <Users className="w-4 h-4" />
                 Add Recipients
               </h4>
+
+              {/* Load previous recipients toggle (only in duplicate mode) */}
+              {duplicateFrom && prevRecipientCount > 0 && (
+                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-foreground">
+                        Load previous recipients
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {prevRecipientCount} emails from
+                        original campaign
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newValue = !loadPrevRecipients;
+                      setLoadPrevRecipients(newValue);
+                      if (newValue) {
+                        loadOriginalRecipients();
+                      } else {
+                        setRecipients('');
+                      }
+                    }}
+                    disabled={prevRecipientsLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      loadPrevRecipients
+                        ? 'bg-primary'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    {prevRecipientsLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin absolute left-1.5" />
+                    ) : (
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          loadPrevRecipients
+                            ? 'translate-x-6'
+                            : 'translate-x-1'
+                        }`}
+                      />
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Dynamic format instructions based on template variables */}
               {templateVariables.length > 0 ? (

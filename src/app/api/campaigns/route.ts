@@ -119,6 +119,7 @@ export async function POST(req: Request) {
     to: string;
     subject: string;
     html: string;
+    variables: Record<string, string>;
   }> = [];
   const seenEmails = new Set<string>();
   let duplicateCount = 0;
@@ -147,7 +148,12 @@ export async function POST(req: Request) {
       );
     }
 
-    validRecipients.push({ to: email, subject, html });
+    validRecipients.push({
+      to: email,
+      subject,
+      html,
+      variables: vars,
+    });
   }
 
   // Filter suppressed
@@ -234,6 +240,7 @@ export async function POST(req: Request) {
           fromEmail: fromAddress,
           subject: r.subject,
           html: r.html,
+          variables: JSON.stringify(r.variables || {}),
           status: 'pending' as const,
         }))
       )
@@ -305,6 +312,7 @@ export async function POST(req: Request) {
         fromEmail: fromAddress,
         subject: r.subject,
         html: r.html,
+        variables: JSON.stringify(r.variables || {}),
         status: 'pending' as const,
       }))
     )

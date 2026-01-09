@@ -1,4 +1,11 @@
-import { Package, X, Check, Minus } from 'lucide-react';
+import {
+  Package,
+  X,
+  Check,
+  Minus,
+  RotateCcw,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import type {
   Batch,
@@ -13,6 +20,7 @@ export function BatchDetailModal({
   pendingBatch,
   loading,
   onClose,
+  onDuplicate,
 }: BatchDetailModalProps) {
   const displayBatch = batch || pendingBatch;
 
@@ -87,14 +95,35 @@ export function BatchDetailModal({
               </div>
 
               {batch.fromEmail && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
-                  <span className="text-xs text-muted-foreground">
-                    From:
-                  </span>
-                  <span className="text-sm font-medium text-foreground">
-                    {batch.fromEmail}
-                  </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg flex-1">
+                    <span className="text-xs text-muted-foreground">
+                      From:
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {batch.fromEmail}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => onDuplicate(batch)}
+                    className="rounded-lg"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Resend
+                  </Button>
                 </div>
+              )}
+
+              {!batch.fromEmail && (
+                <Button
+                  size="sm"
+                  onClick={() => onDuplicate(batch)}
+                  className="rounded-lg"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Resend Campaign
+                </Button>
               )}
 
               {(batch.suppressed > 0 ||

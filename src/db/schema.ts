@@ -144,6 +144,7 @@ export const emails = pgTable(
     subject: varchar('subject', { length: 500 }).notNull(),
     html: text('html'),
     text: text('text'),
+    variables: text('variables'), // JSON string of { name: "John", org: "Acme" }
     status: emailStatusEnum('status')
       .default('pending')
       .notNull(),

@@ -58,6 +58,7 @@ export interface BatchDetailModalProps {
   pendingBatch: Batch | null | undefined;
   loading: boolean;
   onClose: () => void;
+  onDuplicate: (batch: BatchDetail) => void;
 }
 
 export interface StatCardProps {
