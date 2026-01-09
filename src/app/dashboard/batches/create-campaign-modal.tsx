@@ -497,365 +497,389 @@ export function CreateCampaignModal({
             </div>
           )}
 
-          {/* Step 1: Select Template */}
-          {step === 1 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Select Template
-              </h4>
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-24 bg-secondary/50 rounded-lg animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : templates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No templates found</p>
-                  <p className="text-sm mt-1">
-                    Create a template first in the Templates
-                    section
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() =>
-                        handleTemplateSelect(template)
-                      }
-                      className={`p-4 rounded-lg border text-left transition-all ${
-                        selectedTemplate?.id === template.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/50 hover:bg-secondary/30'
-                      }`}
-                    >
-                      <p className="font-medium text-foreground truncate">
-                        {template.name}
+          {/* Loading overlay for duplicate pre-fill */}
+          {duplicatePrefilling && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Loading campaign data...
+              </p>
+            </div>
+          )}
+
+          {!duplicatePrefilling && (
+            <>
+              {/* Step 1: Select Template */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Select Template
+                  </h4>
+                  {loading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className="h-24 bg-secondary/50 rounded-lg animate-pulse"
+                        />
+                      ))}
+                    </div>
+                  ) : templates.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>No templates found</p>
+                      <p className="text-sm mt-1">
+                        Create a template first in the
+                        Templates section
                       </p>
-                      <p className="text-sm text-muted-foreground truncate mt-1">
-                        {template.subject}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* From Address Section */}
-              <div className="pt-4 border-t border-border">
-                <h4 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
-                  📧 From Address
-                </h4>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">
-                      From Name (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={fromName}
-                      onChange={(e) =>
-                        setFromName(e.target.value)
-                      }
-                      placeholder="My Newsletter"
-                      className="w-full px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">
-                      From Email *
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={fromPrefix}
-                        onChange={(e) =>
-                          setFromPrefix(
-                            e.target.value.replace(
-                              /[^a-zA-Z0-9._-]/g,
-                              ''
-                            )
-                          )
-                        }
-                        placeholder="newsletter"
-                        className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono"
-                      />
-                      <span className="flex items-center text-muted-foreground text-sm">
-                        @
-                      </span>
-                      <div
-                        className="relative flex-1"
-                        ref={domainDropdownRef}
-                      >
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {templates.map((template) => (
                         <button
-                          type="button"
+                          key={template.id}
                           onClick={() =>
-                            setDomainDropdownOpen(
-                              !domainDropdownOpen
-                            )
+                            handleTemplateSelect(template)
                           }
-                          className="w-full min-w-[140px] flex items-center justify-between gap-2 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground text-sm font-mono hover:bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                          className={`p-4 rounded-lg border text-left transition-all ${
+                            selectedTemplate?.id ===
+                            template.id
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50 hover:bg-secondary/30'
+                          }`}
                         >
-                          <span
-                            className={
-                              selectedDomain
-                                ? 'text-foreground'
-                                : 'text-muted-foreground'
-                            }
-                          >
-                            {domainsLoading
-                              ? 'Loading...'
-                              : selectedDomain?.domain ||
-                                'Select domain'}
-                          </span>
-                          <ChevronDown
-                            className={`w-4 h-4 text-muted-foreground transition-transform ${
-                              domainDropdownOpen
-                                ? 'rotate-180'
-                                : ''
-                            }`}
-                          />
+                          <p className="font-medium text-foreground truncate">
+                            {template.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate mt-1">
+                            {template.subject}
+                          </p>
                         </button>
-                        {domainDropdownOpen && (
-                          <div className="absolute left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 py-1 animate-fade-in max-h-48 overflow-auto">
-                            {domains.length === 0 ? (
-                              <div className="px-3 py-2 text-sm text-muted-foreground">
-                                No verified domains
+                      ))}
+                    </div>
+                  )}
+
+                  {/* From Address Section */}
+                  <div className="pt-4 border-t border-border">
+                    <h4 className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+                      📧 From Address
+                    </h4>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">
+                          From Name (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={fromName}
+                          onChange={(e) =>
+                            setFromName(e.target.value)
+                          }
+                          placeholder="My Newsletter"
+                          className="w-full px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">
+                          From Email *
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={fromPrefix}
+                            onChange={(e) =>
+                              setFromPrefix(
+                                e.target.value.replace(
+                                  /[^a-zA-Z0-9._-]/g,
+                                  ''
+                                )
+                              )
+                            }
+                            placeholder="newsletter"
+                            className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono"
+                          />
+                          <span className="flex items-center text-muted-foreground text-sm">
+                            @
+                          </span>
+                          <div
+                            className="relative flex-1"
+                            ref={domainDropdownRef}
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDomainDropdownOpen(
+                                  !domainDropdownOpen
+                                )
+                              }
+                              className="w-full min-w-[140px] flex items-center justify-between gap-2 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground text-sm font-mono hover:bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                            >
+                              <span
+                                className={
+                                  selectedDomain
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground'
+                                }
+                              >
+                                {domainsLoading
+                                  ? 'Loading...'
+                                  : selectedDomain?.domain ||
+                                    'Select domain'}
+                              </span>
+                              <ChevronDown
+                                className={`w-4 h-4 text-muted-foreground transition-transform ${
+                                  domainDropdownOpen
+                                    ? 'rotate-180'
+                                    : ''
+                                }`}
+                              />
+                            </button>
+                            {domainDropdownOpen && (
+                              <div className="absolute left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 py-1 animate-fade-in max-h-48 overflow-auto">
+                                {domains.length === 0 ? (
+                                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                                    No verified domains
+                                  </div>
+                                ) : (
+                                  domains.map((domain) => (
+                                    <button
+                                      key={domain.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDomain(
+                                          domain
+                                        );
+                                        setDomainDropdownOpen(
+                                          false
+                                        );
+                                      }}
+                                      className={`w-full flex items-center justify-between px-3 py-2 text-sm font-mono text-left transition-colors ${
+                                        selectedDomain?.id ===
+                                        domain.id
+                                          ? 'bg-primary/10 text-primary'
+                                          : 'text-foreground hover:bg-secondary/50'
+                                      }`}
+                                    >
+                                      <span>
+                                        {domain.domain}
+                                      </span>
+                                      {selectedDomain?.id ===
+                                        domain.id && (
+                                        <Check className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  ))
+                                )}
                               </div>
-                            ) : (
-                              domains.map((domain) => (
-                                <button
-                                  key={domain.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDomain(
-                                      domain
-                                    );
-                                    setDomainDropdownOpen(
-                                      false
-                                    );
-                                  }}
-                                  className={`w-full flex items-center justify-between px-3 py-2 text-sm font-mono text-left transition-colors ${
-                                    selectedDomain?.id ===
-                                    domain.id
-                                      ? 'bg-primary/10 text-primary'
-                                      : 'text-foreground hover:bg-secondary/50'
-                                  }`}
-                                >
-                                  <span>
-                                    {domain.domain}
-                                  </span>
-                                  {selectedDomain?.id ===
-                                    domain.id && (
-                                    <Check className="w-4 h-4" />
-                                  )}
-                                </button>
-                              ))
                             )}
                           </div>
+                        </div>
+                        {domains.length === 0 && (
+                          <p className="text-xs text-yellow-500 mt-1">
+                            ⚠️ Add and verify a domain in
+                            the Domains section first
+                          </p>
+                        )}
+                        {selectedDomain && fromPrefix && (
+                          <p className="text-xs text-green-500 mt-1">
+                            ✓ Will send from:{' '}
+                            {fromName
+                              ? `${fromName} <${fromPrefix}@${selectedDomain.domain}>`
+                              : `${fromPrefix}@${selectedDomain.domain}`}
+                          </p>
                         )}
                       </div>
                     </div>
-                    {domains.length === 0 && (
-                      <p className="text-xs text-yellow-500 mt-1">
-                        ⚠️ Add and verify a domain in the
-                        Domains section first
-                      </p>
-                    )}
-                    {selectedDomain && fromPrefix && (
-                      <p className="text-xs text-green-500 mt-1">
-                        ✓ Will send from:{' '}
-                        {fromName
-                          ? `${fromName} <${fromPrefix}@${selectedDomain.domain}>`
-                          : `${fromPrefix}@${selectedDomain.domain}`}
-                      </p>
-                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* Step 2: Add Recipients */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Add Recipients
-              </h4>
+              {/* Step 2: Add Recipients */}
+              {step === 2 && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Add Recipients
+                  </h4>
 
-              {/* Load previous recipients toggle (only in duplicate mode) */}
-              {duplicateFrom && prevRecipientCount > 0 && (
-                <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border">
-                  <div className="flex items-center gap-3">
-                    <RotateCcw className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-foreground">
-                        Load previous recipients
+                  {/* Load previous recipients toggle (only in duplicate mode) */}
+                  {duplicateFrom &&
+                    prevRecipientCount > 0 && (
+                      <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border">
+                        <div className="flex items-center gap-3">
+                          <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm text-foreground">
+                              Load previous recipients
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {prevRecipientCount} emails
+                              from original campaign
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newValue =
+                              !loadPrevRecipients;
+                            setLoadPrevRecipients(newValue);
+                            if (newValue) {
+                              loadOriginalRecipients();
+                            } else {
+                              setRecipients('');
+                            }
+                          }}
+                          disabled={prevRecipientsLoading}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            loadPrevRecipients
+                              ? 'bg-primary'
+                              : 'bg-muted'
+                          }`}
+                        >
+                          {prevRecipientsLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin absolute left-1.5" />
+                          ) : (
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                loadPrevRecipients
+                                  ? 'translate-x-6'
+                                  : 'translate-x-1'
+                              }`}
+                            />
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                  {/* Dynamic format instructions based on template variables */}
+                  {templateVariables.length > 0 ? (
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>
+                        Enter one recipient per line using
+                        format:{' '}
+                        <span className="text-foreground font-mono">
+                          email,{' '}
+                          {templateVariables.join(', ')}
+                        </span>
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {prevRecipientCount} emails from
-                        original campaign
+                      <p className="text-xs">
+                        Example: john@acme.com,{' '}
+                        {templateVariables
+                          .map((v, i) =>
+                            i === 0
+                              ? 'John'
+                              : `${
+                                  v
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                  v.slice(1)
+                                } Value`
+                          )
+                          .join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Enter email addresses, one per line.
+                    </p>
+                  )}
+
+                  <textarea
+                    value={recipients}
+                    onChange={(e) =>
+                      setRecipients(e.target.value)
+                    }
+                    placeholder={
+                      templateVariables.length > 0
+                        ? `john@example.com, ${templateVariables
+                            .map((v, i) =>
+                              i === 0
+                                ? 'John Doe'
+                                : `${
+                                    v
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                    v.slice(1)
+                                  } Value`
+                            )
+                            .join(
+                              ', '
+                            )}\njane@example.com, ${templateVariables
+                            .map((v, i) =>
+                              i === 0
+                                ? 'Jane Smith'
+                                : `Another ${
+                                    v
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                    v.slice(1)
+                                  }`
+                            )
+                            .join(', ')}`
+                        : `john@example.com\njane@example.com`
+                    }
+                    className="w-full h-48 px-4 py-3 bg-secondary/30 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-foreground placeholder:text-muted-foreground font-mono text-sm"
+                  />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Upload className="w-4 h-4" />
+                    <span>
+                      {parseRecipients().length} recipients
+                      detected
+                    </span>
+                  </div>
+                  {getMissingVariablesCount() > 0 && (
+                    <p className="text-xs text-yellow-500">
+                      ⚠️ {getMissingVariablesCount()}{' '}
+                      recipient(s) missing variable values
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Preview & Send */}
+              {step === 3 && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Review Campaign
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-secondary/30 rounded-lg border border-border">
+                      <p className="text-xs text-muted-foreground uppercase mb-1">
+                        Template
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {selectedTemplate?.name}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-secondary/30 rounded-lg border border-border">
+                      <p className="text-xs text-muted-foreground uppercase mb-1">
+                        Recipients
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {parseRecipients().length}
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newValue = !loadPrevRecipients;
-                      setLoadPrevRecipients(newValue);
-                      if (newValue) {
-                        loadOriginalRecipients();
-                      } else {
-                        setRecipients('');
-                      }
-                    }}
-                    disabled={prevRecipientsLoading}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      loadPrevRecipients
-                        ? 'bg-primary'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {prevRecipientsLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin absolute left-1.5" />
-                    ) : (
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          loadPrevRecipients
-                            ? 'translate-x-6'
-                            : 'translate-x-1'
-                        }`}
-                      />
-                    )}
-                  </button>
+                  <div className="p-4 bg-secondary/30 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground uppercase mb-2">
+                      Subject
+                    </p>
+                    <p className="text-foreground">
+                      {selectedTemplate?.subject}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-500 text-sm">
+                    ✨ Links in this email will be
+                    automatically tracked via Shrnk
+                  </div>
                 </div>
               )}
-
-              {/* Dynamic format instructions based on template variables */}
-              {templateVariables.length > 0 ? (
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>
-                    Enter one recipient per line using
-                    format:{' '}
-                    <span className="text-foreground font-mono">
-                      email, {templateVariables.join(', ')}
-                    </span>
-                  </p>
-                  <p className="text-xs">
-                    Example: john@acme.com,{' '}
-                    {templateVariables
-                      .map((v, i) =>
-                        i === 0
-                          ? 'John'
-                          : `${
-                              v.charAt(0).toUpperCase() +
-                              v.slice(1)
-                            } Value`
-                      )
-                      .join(', ')}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Enter email addresses, one per line.
-                </p>
-              )}
-
-              <textarea
-                value={recipients}
-                onChange={(e) =>
-                  setRecipients(e.target.value)
-                }
-                placeholder={
-                  templateVariables.length > 0
-                    ? `john@example.com, ${templateVariables
-                        .map((v, i) =>
-                          i === 0
-                            ? 'John Doe'
-                            : `${
-                                v.charAt(0).toUpperCase() +
-                                v.slice(1)
-                              } Value`
-                        )
-                        .join(
-                          ', '
-                        )}\njane@example.com, ${templateVariables
-                        .map((v, i) =>
-                          i === 0
-                            ? 'Jane Smith'
-                            : `Another ${
-                                v.charAt(0).toUpperCase() +
-                                v.slice(1)
-                              }`
-                        )
-                        .join(', ')}`
-                    : `john@example.com\njane@example.com`
-                }
-                className="w-full h-48 px-4 py-3 bg-secondary/30 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-foreground placeholder:text-muted-foreground font-mono text-sm"
-              />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Upload className="w-4 h-4" />
-                <span>
-                  {parseRecipients().length} recipients
-                  detected
-                </span>
-              </div>
-              {getMissingVariablesCount() > 0 && (
-                <p className="text-xs text-yellow-500">
-                  ⚠️ {getMissingVariablesCount()}{' '}
-                  recipient(s) missing variable values
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Preview & Send */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Review Campaign
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                  <p className="text-xs text-muted-foreground uppercase mb-1">
-                    Template
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {selectedTemplate?.name}
-                  </p>
-                </div>
-                <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                  <p className="text-xs text-muted-foreground uppercase mb-1">
-                    Recipients
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {parseRecipients().length}
-                  </p>
-                </div>
-              </div>
-              <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                <p className="text-xs text-muted-foreground uppercase mb-2">
-                  Subject
-                </p>
-                <p className="text-foreground">
-                  {selectedTemplate?.subject}
-                </p>
-              </div>
-              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-500 text-sm">
-                ✨ Links in this email will be automatically
-                tracked via Shrnk
-              </div>
-            </div>
+            </>
           )}
         </div>
 
