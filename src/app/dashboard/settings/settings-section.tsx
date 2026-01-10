@@ -181,7 +181,7 @@ export default function SettingsSection() {
   return (
     <div className="space-y-6">
       {/* Tab Navigation with Animated Indicator */}
-      <div className="relative flex gap-1 p-1 bg-secondary/50 rounded-xl w-fit">
+      <div className="relative flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -279,7 +279,7 @@ export default function SettingsSection() {
                     type="email"
                     value={data.profile.email}
                     disabled
-                    className="w-full px-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground/70 cursor-not-allowed pr-10"
+                    className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-lg text-foreground/70 cursor-not-allowed pr-10"
                   />
                   <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 </div>
@@ -463,7 +463,7 @@ export default function SettingsSection() {
                     </span>
                   </div>
                   {/* Animated Progress Bar */}
-                  <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-3 bg-muted rounded-full overflow-hidden">
                     <motion.div
                       className={`h-full rounded-full ${
                         usagePercent >= 80
@@ -544,7 +544,7 @@ export default function SettingsSection() {
                 </div>
                 <button
                   disabled
-                  className="px-4 py-2 bg-secondary text-muted-foreground font-medium rounded-lg cursor-not-allowed"
+                  className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg cursor-not-allowed"
                 >
                   Coming Soon
                 </button>
