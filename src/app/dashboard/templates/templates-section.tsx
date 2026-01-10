@@ -6,6 +6,7 @@ import { Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { TemplateCard, EmptyState } from './templates-card';
 import { TemplateModal } from './templates-modal';
+import { TestEmailModal } from './templates-test-modal';
 import type {
   Template,
   TemplatesSectionProps,
@@ -26,6 +27,37 @@ export default function TemplatesSection({
     useState<Template | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [testTemplate, setTestTemplate] =
+    useState<Template | null>(null);
+  const [userEmail, setUserEmail] = useState('');
+
+  // Fetch user email for test modal (cached in localStorage)
+  useEffect(() => {
+    async function fetchUserEmail() {
+      // Check cache first
+      const cachedEmail = localStorage.getItem(
+        'fwd_user_email'
+      );
+      if (cachedEmail) {
+        setUserEmail(cachedEmail);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success && data.data.profile.email) {
+          const email = data.data.profile.email;
+          setUserEmail(email);
+          // Cache for future mounts
+          localStorage.setItem('fwd_user_email', email);
+        }
+      } catch {
+        // Silently fail, user can type email
+      }
+    }
+    fetchUserEmail();
+  }, []);
 
   // Filter templates by search
   const filteredTemplates = templates.filter(
@@ -63,6 +95,10 @@ export default function TemplatesSection({
     setEditingTemplate(null);
     setDuplicateSource(template);
     setShowModal(true);
+  };
+
+  const openTestModal = (template: Template) => {
+    setTestTemplate(template);
   };
 
   const closeModal = () => {
@@ -180,6 +216,7 @@ export default function TemplatesSection({
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
               onDuplicate={duplicateTemplate}
+              onSendTest={openTestModal}
             />
           ))}
         </div>
@@ -202,6 +239,13 @@ export default function TemplatesSection({
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
         variant="danger"
+      />
+
+      <TestEmailModal
+        isOpen={!!testTemplate}
+        onClose={() => setTestTemplate(null)}
+        template={testTemplate}
+        userEmail={userEmail}
       />
     </div>
   );

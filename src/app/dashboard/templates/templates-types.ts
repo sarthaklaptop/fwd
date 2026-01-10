@@ -17,6 +17,7 @@ export interface TemplateCardProps {
   onEdit: (template: Template) => void;
   onDelete: (template: Template) => void;
   onDuplicate: (template: Template) => void;
+  onSendTest: (template: Template) => void;
 }
 
 export interface TemplateModalProps {

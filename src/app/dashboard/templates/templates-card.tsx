@@ -5,6 +5,7 @@ import {
   Pencil,
   Trash2,
   Copy,
+  Send,
 } from 'lucide-react';
 import type {
   Template,
@@ -23,6 +24,7 @@ export function TemplateCard({
   onEdit,
   onDelete,
   onDuplicate,
+  onSendTest,
 }: TemplateCardProps) {
   return (
     <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
@@ -32,6 +34,17 @@ export function TemplateCard({
         </h3>
         <TooltipProvider>
           <div className="flex gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onSendTest(template)}
+                  className="inline-flex items-center gap-1 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 text-sm p-1 rounded hover:bg-green-500/10 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Send Test</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
