@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { emails, suppressionList } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { publishEvent } from '@/lib/events';
+import { logEmailEvent, logError } from '@/lib/sentry';
 
 interface SNSMessage {
   Type: string;
@@ -34,7 +35,9 @@ interface SESComplaintNotification {
   };
 }
 
-type SESNotification = SESBounceNotification | SESComplaintNotification;
+type SESNotification =
+  | SESBounceNotification
+  | SESComplaintNotification;
 
 export async function POST(req: Request) {
   try {
@@ -43,7 +46,9 @@ export async function POST(req: Request) {
 
     // SNS subscription confirmation (one-time setup)
     if (message.Type === 'SubscriptionConfirmation') {
-      console.log('📬 SNS Subscription confirmation received');
+      console.log(
+        '📬 SNS Subscription confirmation received'
+      );
       if (message.SubscribeURL) {
         await fetch(message.SubscribeURL);
         console.log('✅ SNS Subscription confirmed');
@@ -52,25 +57,43 @@ export async function POST(req: Request) {
     }
 
     if (message.Type === 'Notification') {
-      const notification: SESNotification = JSON.parse(message.Message);
+      const notification: SESNotification = JSON.parse(
+        message.Message
+      );
 
       if (notification.notificationType === 'Bounce') {
         await handleBounce(notification);
-      } else if (notification.notificationType === 'Complaint') {
+      } else if (
+        notification.notificationType === 'Complaint'
+      ) {
         await handleComplaint(notification);
       }
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('SNS notification error:', error);
-    return NextResponse.json({ error: 'Failed to process notification' }, { status: 500 });
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('SNS notification error:', err);
+    logError(err, { source: 'webhook' });
+    return NextResponse.json(
+      { error: 'Failed to process notification' },
+      { status: 500 }
+    );
   }
 }
 
-async function handleBounce(notification: SESBounceNotification) {
+async function handleBounce(
+  notification: SESBounceNotification
+) {
   const { bounce, mail } = notification;
   console.log(`🔴 Bounce received: ${bounce.bounceType}`);
+
+  // Log to Sentry for monitoring
+  logEmailEvent('bounce', {
+    email: bounce.bouncedRecipients[0]?.emailAddress,
+    bounceType: bounce.bounceType,
+    reason: `${bounce.bounceType} bounce`,
+  });
 
   const emailRecords = await db
     .select()
@@ -80,41 +103,61 @@ async function handleBounce(notification: SESBounceNotification) {
   const emailRecord = emailRecords[0];
 
   if (emailRecord) {
-    await db.update(emails)
+    await db
+      .update(emails)
       .set({
         status: 'bounced',
         bounceType: bounce.bounceType,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(emails.id, emailRecord.id));
 
     if (emailRecord.userId) {
-      await publishEvent(emailRecord.userId, 'email.bounced', {
-        emailId: emailRecord.id,
-        bounceType: bounce.bounceType,
-        recipients: bounce.bouncedRecipients.map(r => r.emailAddress),
-      });
+      await publishEvent(
+        emailRecord.userId,
+        'email.bounced',
+        {
+          emailId: emailRecord.id,
+          bounceType: bounce.bounceType,
+          recipients: bounce.bouncedRecipients.map(
+            (r) => r.emailAddress
+          ),
+        }
+      );
     }
   }
 
   // Only suppress permanent bounces (not transient/soft bounces)
   if (bounce.bounceType === 'Permanent') {
     for (const recipient of bounce.bouncedRecipients) {
-      await db.insert(suppressionList).values({
-        email: recipient.emailAddress.toLowerCase(),
-        reason: 'bounce',
-        userId: emailRecord?.userId || null,
-        emailId: emailRecord?.id || null,
-      }).onConflictDoNothing();
+      await db
+        .insert(suppressionList)
+        .values({
+          email: recipient.emailAddress.toLowerCase(),
+          reason: 'bounce',
+          userId: emailRecord?.userId || null,
+          emailId: emailRecord?.id || null,
+        })
+        .onConflictDoNothing();
 
-      console.log(`🚫 Added ${recipient.emailAddress} to suppression list (bounce)`);
+      console.log(
+        `🚫 Added ${recipient.emailAddress} to suppression list (bounce)`
+      );
     }
   }
 }
 
-async function handleComplaint(notification: SESComplaintNotification) {
+async function handleComplaint(
+  notification: SESComplaintNotification
+) {
   const { complaint, mail } = notification;
   console.log('🔴 Complaint received');
+
+  // Log to Sentry for monitoring (complaints are serious!)
+  logEmailEvent('complaint', {
+    email: complaint.complainedRecipients[0]?.emailAddress,
+    reason: 'User marked as spam',
+  });
 
   const emailRecords = await db
     .select()
@@ -124,27 +167,39 @@ async function handleComplaint(notification: SESComplaintNotification) {
   const emailRecord = emailRecords[0];
 
   if (emailRecord) {
-    await db.update(emails)
+    await db
+      .update(emails)
       .set({ status: 'complained', updatedAt: new Date() })
       .where(eq(emails.id, emailRecord.id));
 
     if (emailRecord.userId) {
-      await publishEvent(emailRecord.userId, 'email.complained', {
-        emailId: emailRecord.id,
-        recipients: complaint.complainedRecipients.map(r => r.emailAddress),
-      });
+      await publishEvent(
+        emailRecord.userId,
+        'email.complained',
+        {
+          emailId: emailRecord.id,
+          recipients: complaint.complainedRecipients.map(
+            (r) => r.emailAddress
+          ),
+        }
+      );
     }
   }
 
   // Always suppress complaints (spam reports are serious)
   for (const recipient of complaint.complainedRecipients) {
-    await db.insert(suppressionList).values({
-      email: recipient.emailAddress.toLowerCase(),
-      reason: 'complaint',
-      userId: emailRecord?.userId || null,
-      emailId: emailRecord?.id || null,
-    }).onConflictDoNothing();
+    await db
+      .insert(suppressionList)
+      .values({
+        email: recipient.emailAddress.toLowerCase(),
+        reason: 'complaint',
+        userId: emailRecord?.userId || null,
+        emailId: emailRecord?.id || null,
+      })
+      .onConflictDoNothing();
 
-    console.log(`🚫 Added ${recipient.emailAddress} to suppression list (complaint)`);
+    console.log(
+      `🚫 Added ${recipient.emailAddress} to suppression list (complaint)`
+    );
   }
 }

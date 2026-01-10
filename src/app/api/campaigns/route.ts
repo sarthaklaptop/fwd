@@ -23,6 +23,7 @@ import {
 import { qstash } from '@/lib/qstash';
 import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
+import { logBatchProgress, logError } from '@/lib/sentry';
 
 const BATCH_LIMIT = 500;
 const DAILY_LIMIT = 100;
@@ -195,6 +196,13 @@ export async function POST(req: Request) {
       status: 'processing',
     })
     .returning({ id: batches.id });
+
+  // Log batch started to Sentry
+  logBatchProgress(batch.id, 'started', {
+    emailCount: finalRecipients.length,
+    userId: user.id,
+    templateId,
+  });
 
   // Link tracking
   let linkMap = new Map<string, string>();

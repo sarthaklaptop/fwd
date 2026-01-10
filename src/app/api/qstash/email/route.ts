@@ -9,6 +9,7 @@ import {
   injectOpenTracking,
   injectUnsubscribeLink,
 } from '@/lib/tracking';
+import { logError } from '@/lib/sentry';
 
 /**
  * Atomically increment batch counter - no race condition possible.
@@ -53,7 +54,7 @@ async function incrementBatchCounter(
       .where(eq(batches.id, batchId));
 
     console.log(
-      `📊 Batch ${batchId} completed with status: ${status}`
+      `Batch ${batchId} completed with status: ${status}`
     );
   }
 }
@@ -174,8 +175,18 @@ async function handler(req: NextRequest) {
       success: true,
       messageId: response.MessageId,
     });
-  } catch (error: any) {
-    console.error(`❌ Email failed: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error(`Email failed: ${err.message}`);
+
+    // Log to Sentry with context
+    logError(err, {
+      source: 'qstash',
+      emailId,
+      batchId: emailRecord?.batchId,
+      userId: effectiveUserId,
+      extra: { to, subject, from: fromEmail },
+    });
 
     // Update database: status = failed
     if (emailId) {
@@ -183,7 +194,7 @@ async function handler(req: NextRequest) {
         .update(emails)
         .set({
           status: 'failed',
-          errorMessage: error.message,
+          errorMessage: err.message,
           updatedAt: new Date(),
         })
         .where(eq(emails.id, emailId));
