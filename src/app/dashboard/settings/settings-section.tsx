@@ -17,6 +17,9 @@ import {
   Trash2,
   Save,
   Check,
+  X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -52,12 +55,21 @@ export default function SettingsSection() {
   const [activeTab, setActiveTab] =
     useState<SettingsTab>('profile');
   const [data, setData] = useState<SettingsData | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] =
+    useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] =
+    useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -74,7 +86,7 @@ export default function SettingsSection() {
         setName(response.data.profile.name || '');
       } else {
         toast.error(
-          response.message || 'Failed to load settings'
+          response.message || 'Failed to load settings',
         );
       }
     } catch {
@@ -97,7 +109,8 @@ export default function SettingsSection() {
       if (response.success) {
         setSaveSuccess(true);
         toast.success(
-          response.message || 'Profile updated successfully'
+          response.message ||
+            'Profile updated successfully',
         );
         if (data) {
           setData({
@@ -112,7 +125,7 @@ export default function SettingsSection() {
         setTimeout(() => setSaveSuccess(false), 2000);
       } else {
         toast.error(
-          response.message || 'Failed to update profile'
+          response.message || 'Failed to update profile',
         );
       }
     } catch {
@@ -129,6 +142,53 @@ export default function SettingsSection() {
     router.refresh();
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      setDeleteError('Please type DELETE to confirm');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteError('Password is required');
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError('');
+
+    try {
+      const res = await fetch('/api/settings/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+
+      const response = await res.json();
+
+      if (response.success) {
+        toast.success('Account deleted successfully');
+        router.push('/auth/login');
+        router.refresh();
+      } else {
+        setDeleteError(
+          response.message || 'Failed to delete account',
+        );
+      }
+    } catch {
+      setDeleteError(
+        'Failed to delete account. Please try again.',
+      );
+    }
+    setDeleting(false);
+  };
+
+  const resetDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletePassword('');
+    setDeleteConfirmText('');
+    setShowPassword(false);
+    setDeleteError('');
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(
       'en-US',
@@ -136,13 +196,13 @@ export default function SettingsSection() {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-      }
+      },
     );
   };
 
   const getInitials = (
     name: string | null,
-    email: string
+    email: string,
   ) => {
     if (name) {
       return name
@@ -245,7 +305,7 @@ export default function SettingsSection() {
                       <span className="text-xl font-bold text-primary">
                         {getInitials(
                           data.profile.name,
-                          data.profile.email
+                          data.profile.email,
                         )}
                       </span>
                     </div>
@@ -454,8 +514,8 @@ export default function SettingsSection() {
                         usagePercent >= 80
                           ? 'text-red-500'
                           : usagePercent >= 50
-                          ? 'text-yellow-500'
-                          : 'text-green-500'
+                            ? 'text-yellow-500'
+                            : 'text-green-500'
                       }`}
                     >
                       {data.usage.emailsToday} /{' '}
@@ -469,14 +529,14 @@ export default function SettingsSection() {
                         usagePercent >= 80
                           ? 'bg-gradient-to-r from-red-500 to-red-600'
                           : usagePercent >= 50
-                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
-                          : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                            ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                            : 'bg-gradient-to-r from-green-500 to-emerald-500'
                       }`}
                       initial={{ width: 0 }}
                       animate={{
                         width: `${Math.min(
                           usagePercent,
-                          100
+                          100,
                         )}%`,
                       }}
                       transition={{
@@ -525,7 +585,7 @@ export default function SettingsSection() {
               </div>
             </div>
 
-            {/* Delete Account (Placeholder) */}
+            {/* Delete Account */}
             <div className="bg-card border border-red-500/20 rounded-xl p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
@@ -542,17 +602,168 @@ export default function SettingsSection() {
                     </p>
                   </div>
                 </div>
-                <button
-                  disabled
-                  className="px-4 py-2 bg-muted text-muted-foreground font-medium rounded-lg cursor-not-allowed"
+                <motion.button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-medium rounded-lg transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  Coming Soon
-                </button>
+                  Delete Account
+                </motion.button>
               </div>
             </div>
           </div>
         )}
       </motion.div>
+
+      {/* Delete Account Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget)
+                resetDeleteModal();
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-500/10 rounded-lg">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Delete Account
+                  </h3>
+                </div>
+                <button
+                  onClick={resetDeleteModal}
+                  className="p-1 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Warning Message */}
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
+                <p className="text-sm text-red-400">
+                  <strong>Warning:</strong> This action
+                  cannot be undone. Your account will be
+                  permanently deleted and you will lose
+                  access to all your data.
+                </p>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Enter your password to confirm
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={
+                        showPassword ? 'text' : 'password'
+                      }
+                      value={deletePassword}
+                      onChange={(e) =>
+                        setDeletePassword(e.target.value)
+                      }
+                      placeholder="Enter your password"
+                      className="w-full px-4 py-2.5 pr-10 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPassword(!showPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* DELETE Confirmation Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Type{' '}
+                    <span className="text-red-500 font-mono">
+                      DELETE
+                    </span>{' '}
+                    to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) =>
+                      setDeleteConfirmText(e.target.value)
+                    }
+                    placeholder="Type DELETE"
+                    className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-colors font-mono"
+                  />
+                </div>
+
+                {/* Error Message */}
+                {deleteError && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-red-500"
+                  >
+                    {deleteError}
+                  </motion.p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={resetDeleteModal}
+                  className="flex-1 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <motion.button
+                  onClick={handleDeleteAccount}
+                  disabled={
+                    deleting ||
+                    deleteConfirmText !== 'DELETE' ||
+                    !deletePassword
+                  }
+                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete Account
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
