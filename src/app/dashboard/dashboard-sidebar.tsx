@@ -241,7 +241,7 @@ export default function DashboardSidebar({
                           style={{
                             width: `${Math.min(
                               usagePercent,
-                              100
+                              100,
                             )}%`,
                           }}
                         />
@@ -282,7 +282,7 @@ export default function DashboardSidebar({
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 py-2 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors w-full cursor-pointer"
               >
                 <LogOut className="h-5 w-5 shrink-0" />
                 <motion.span
