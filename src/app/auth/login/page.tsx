@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import {
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
@@ -12,6 +15,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Show error message if redirected due to account issues
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error === 'account_deleted') {
+      toast.error(
+        'This account has been deleted and is no longer accessible.',
+      );
+    } else if (error === 'account_not_found') {
+      toast.error(
+        'Account not found. Please contact support if this is unexpected.',
+      );
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

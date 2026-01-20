@@ -67,7 +67,7 @@ function PasswordStrengthIndicator({
 }) {
   const { score, checks } = useMemo(
     () => calculatePasswordStrength(password),
-    [password]
+    [password],
   );
   const { label, color, bgColor } = getStrengthLabel(score);
   const percentage = (score / 6) * 100;
@@ -158,12 +158,13 @@ export default function SignupPage() {
       password,
       options: {
         data: { name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
     if (error) {
       toast.error(
-        error.message || 'Failed to create account'
+        error.message || 'Failed to create account',
       );
       setLoading(false);
       return;
@@ -186,10 +187,18 @@ export default function SignupPage() {
 
       toast.success('Account created!');
 
-      if (data.user.identities?.length === 0) {
+      // Check if email confirmation is required
+      // identities?.length === 0 means user already exists (duplicate signup)
+      // email_confirmed_at being null means confirmation is pending
+      if (
+        data.user.identities?.length === 0 ||
+        !data.session
+      ) {
+        // Email confirmation required - show check email screen
         setSuccess(true);
         setLoading(false);
       } else {
+        // User is immediately logged in (email auto-confirmed or already verified)
         router.push('/dashboard');
         router.refresh();
       }

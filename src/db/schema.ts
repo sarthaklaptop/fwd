@@ -8,6 +8,7 @@ import {
   index,
   uniqueIndex,
   integer,
+  boolean,
 } from 'drizzle-orm/pg-core';
 
 // Email status enum
@@ -31,13 +32,13 @@ export const batchStatusEnum = pgEnum('batch_status', [
 // Suppression reason enum
 export const suppressionReasonEnum = pgEnum(
   'suppression_reason',
-  ['bounce', 'complaint', 'unsubscribe', 'manual']
+  ['bounce', 'complaint', 'unsubscribe', 'manual'],
 );
 
 // Suppression source enum
 export const suppressionSourceEnum = pgEnum(
   'suppression_source',
-  ['ses', 'link', 'api', 'dashboard']
+  ['ses', 'link', 'api', 'dashboard'],
 );
 
 // Users table
@@ -47,6 +48,8 @@ export const users = pgTable('users', {
     .notNull()
     .unique(),
   name: varchar('name', { length: 255 }),
+  isDeleted: boolean('is_deleted').default(false).notNull(),
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -74,7 +77,7 @@ export const apiKeys = pgTable(
   },
   (table) => [
     index('api_keys_user_id_idx').on(table.userId),
-  ]
+  ],
 );
 
 // Suppression list - emails that should not receive messages
@@ -93,9 +96,9 @@ export const suppressionList = pgTable(
   },
   (table) => [
     uniqueIndex('suppression_list_email_idx').on(
-      table.email
+      table.email,
     ),
-  ]
+  ],
 );
 
 // Batches table - tracks batch send operations
@@ -107,7 +110,7 @@ export const batches = pgTable(
       .references(() => users.id)
       .notNull(),
     templateId: uuid('template_id').references(
-      () => templates.id
+      () => templates.id,
     ),
     fromEmail: varchar('from_email', { length: 500 }),
     total: integer('total').notNull(),
@@ -129,7 +132,7 @@ export const batches = pgTable(
   (table) => [
     index('batches_user_id_idx').on(table.userId),
     index('batches_created_at_idx').on(table.createdAt),
-  ]
+  ],
 );
 
 // Emails table
@@ -167,7 +170,7 @@ export const emails = pgTable(
     index('emails_user_id_idx').on(table.userId),
     index('emails_batch_id_idx').on(table.batchId),
     index('emails_created_at_idx').on(table.createdAt),
-  ]
+  ],
 );
 
 // Email templates - reusable templates with variable substitution
@@ -191,7 +194,7 @@ export const templates = pgTable(
   },
   (table) => [
     index('templates_user_id_idx').on(table.userId),
-  ]
+  ],
 );
 
 // Webhooks table - User subscriptions to events
@@ -214,7 +217,7 @@ export const webhooks = pgTable(
   },
   (table) => [
     index('webhooks_user_id_idx').on(table.userId),
-  ]
+  ],
 );
 
 // Webhook events - Log of sent webhooks
@@ -237,9 +240,9 @@ export const webhookEvents = pgTable(
   },
   (table) => [
     index('webhook_events_webhook_id_idx').on(
-      table.webhookId
+      table.webhookId,
     ),
-  ]
+  ],
 );
 
 // Domain status enum
@@ -278,9 +281,9 @@ export const domains = pgTable(
     index('domains_user_id_idx').on(table.userId),
     uniqueIndex('domains_user_domain_idx').on(
       table.userId,
-      table.domain
+      table.domain,
     ),
-  ]
+  ],
 );
 
 // Type inference
