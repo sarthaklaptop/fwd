@@ -773,35 +773,35 @@ function SettingsSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
       {/* Tabs skeleton */}
-      <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl w-fit">
-        <div className="h-10 bg-secondary rounded-lg w-24"></div>
-        <div className="h-10 bg-secondary rounded-lg w-24"></div>
-        <div className="h-10 bg-secondary rounded-lg w-28"></div>
+      <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit">
+        <div className="h-10 bg-muted/50 rounded-lg w-24"></div>
+        <div className="h-10 bg-muted/50 rounded-lg w-24"></div>
+        <div className="h-10 bg-muted/50 rounded-lg w-28"></div>
       </div>
 
       {/* Content skeleton */}
       <div className="bg-card border border-border rounded-xl p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-secondary rounded-full"></div>
+          <div className="w-16 h-16 bg-muted/50 rounded-full"></div>
           <div className="space-y-2">
-            <div className="h-4 bg-secondary rounded w-32"></div>
-            <div className="h-3 bg-secondary rounded w-48"></div>
+            <div className="h-4 bg-muted/50 rounded w-32"></div>
+            <div className="h-3 bg-muted/50 rounded w-48"></div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="h-3 bg-secondary rounded w-16"></div>
-            <div className="h-10 bg-secondary rounded-lg w-full"></div>
+            <div className="h-3 bg-muted/50 rounded w-16"></div>
+            <div className="h-10 bg-muted/50 rounded-lg w-full"></div>
           </div>
           <div className="space-y-2">
-            <div className="h-3 bg-secondary rounded w-20"></div>
-            <div className="h-10 bg-secondary rounded-lg w-full"></div>
+            <div className="h-3 bg-muted/50 rounded w-20"></div>
+            <div className="h-10 bg-muted/50 rounded-lg w-full"></div>
           </div>
         </div>
 
         <div className="pt-4 flex justify-end">
-          <div className="h-10 bg-secondary rounded-lg w-32"></div>
+          <div className="h-10 bg-muted/50 rounded-lg w-32"></div>
         </div>
       </div>
     </div>
