@@ -23,7 +23,7 @@ export function logError(
     batchId?: string | null;
     emailId?: string;
     extra?: Record<string, unknown>;
-  }
+  },
 ) {
   const err =
     error instanceof Error
@@ -51,7 +51,7 @@ export function logEvent(
   category: string,
   message: string,
   data?: Record<string, unknown>,
-  level: Sentry.SeverityLevel = 'info'
+  level: Sentry.SeverityLevel = 'info',
 ) {
   Sentry.addBreadcrumb({
     category,
@@ -74,7 +74,7 @@ export function logBatchProgress(
     userId?: string;
     templateId?: string;
     error?: string;
-  }
+  },
 ) {
   const level: Sentry.SeverityLevel =
     status === 'failed' ? 'error' : 'info';
@@ -115,7 +115,7 @@ export function logEmailEvent(
     email?: string;
     reason?: string;
     bounceType?: string;
-  }
+  },
 ) {
   const level: Sentry.SeverityLevel =
     type === 'delivery' ? 'info' : 'warning';
@@ -159,4 +159,53 @@ export function setUserContext(user: {
  */
 export function clearUserContext() {
   Sentry.setUser(null);
+}
+
+/**
+ * Log account lifecycle events (deletion, etc.)
+ * Important for audit trail and compliance
+ */
+export function logAccountEvent(
+  type: 'deleted' | 'suspended' | 'restored',
+  data: {
+    userId: string;
+    email?: string;
+    reason?: string;
+  },
+) {
+  const level: Sentry.SeverityLevel = 'warning';
+
+  Sentry.addBreadcrumb({
+    category: 'account-event',
+    message: `Account ${type}`,
+    level,
+    data: {
+      ...data,
+      timestamp: new Date().toISOString(),
+    },
+  });
+
+  // Account events are critical - always capture as Sentry events
+  Sentry.captureMessage(
+    `Account ${type}: ${data.email || data.userId}`,
+    {
+      level,
+      tags: {
+        source: 'auth',
+        eventType: type,
+        userId: data.userId,
+      },
+      extra: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+    },
+  );
+
+  // Also log to console for server logs
+  console.log(`🔐 Account ${type}:`, {
+    userId: data.userId,
+    email: data.email,
+    timestamp: new Date().toISOString(),
+  });
 }

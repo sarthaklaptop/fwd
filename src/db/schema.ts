@@ -152,7 +152,7 @@ export const emails = pgTable(
       .default('pending')
       .notNull(),
     messageId: varchar('message_id', { length: 255 }),
-    eId: varchar('ses_message_id', {
+    sesMessageId: varchar('ses_message_id', {
       length: 255,
     }),
     errorMessage: text('error_message'),

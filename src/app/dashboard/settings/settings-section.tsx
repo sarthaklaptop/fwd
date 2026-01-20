@@ -712,6 +712,7 @@ export default function SettingsSection() {
                     onChange={(e) =>
                       setDeleteConfirmText(e.target.value)
                     }
+                    onPaste={(e) => e.preventDefault()}
                     placeholder="Type DELETE"
                     className="w-full px-4 py-2.5 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-colors font-mono"
                   />

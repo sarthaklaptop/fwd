@@ -4,6 +4,7 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
+import { logAccountEvent } from '@/lib/sentry';
 
 /**
  * DELETE /api/settings/account
@@ -35,9 +36,16 @@ export async function DELETE(request: Request) {
         'Please log in to delete your account',
       ).send();
     }
-
     // 2. Get password from request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return new ApiError(
+        400,
+        'Invalid request body',
+      ).send();
+    }
     const { password } = body;
 
     if (!password) {
@@ -62,6 +70,7 @@ export async function DELETE(request: Request) {
     }
 
     const userId = user.id;
+    const userEmail = user.email;
 
     // 4. Soft delete - mark user as deleted
     await db
@@ -73,7 +82,14 @@ export async function DELETE(request: Request) {
       })
       .where(eq(users.id, userId));
 
-    // 5. Sign out the current session
+    // 5. Log account deletion for audit trail
+    logAccountEvent('deleted', {
+      userId,
+      email: userEmail,
+      reason: 'User requested account deletion',
+    });
+
+    // 6. Sign out the current session
     await supabase.auth.signOut();
 
     return new ApiResponse(
