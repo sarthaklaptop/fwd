@@ -836,7 +836,7 @@ function StatCard({
 
   return (
     <motion.div
-      className="flex flex-col items-center p-4 bg-secondary/30 rounded-xl border border-border hover:border-primary/30 transition-colors"
+      className="flex flex-col items-center p-4 bg-muted/20 rounded-xl border border-border hover:border-primary/30 transition-colors"
       whileHover={{ scale: 1.02, y: -2 }}
       transition={{
         type: 'spring',
