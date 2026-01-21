@@ -50,11 +50,11 @@ export default function AnalyticsSection() {
   if (loading && !overview) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-secondary rounded w-48"></div>
+        <div className="h-8 bg-muted/50 rounded w-48"></div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="h-32 bg-secondary rounded-xl"></div>
-          <div className="h-32 bg-secondary rounded-xl"></div>
-          <div className="h-32 bg-secondary rounded-xl"></div>
+          <div className="h-32 bg-muted/50 rounded-xl"></div>
+          <div className="h-32 bg-muted/50 rounded-xl"></div>
+          <div className="h-32 bg-muted/50 rounded-xl"></div>
         </div>
         <div className="h-64 bg-secondary rounded-xl"></div>
       </div>
@@ -80,8 +80,8 @@ export default function AnalyticsSection() {
             {r === '7d'
               ? '7 Days'
               : r === '30d'
-              ? '30 Days'
-              : '90 Days'}
+                ? '30 Days'
+                : '90 Days'}
           </button>
         ))}
         {loading && (
@@ -151,7 +151,7 @@ export default function AnalyticsSection() {
           <BarChart data={timeline.data} />
         </div>
       ) : timeline && timeline.data.length === 0 ? (
-        <div className="bg-secondary/50 rounded-xl p-8 text-center border border-border">
+        <div className="bg-muted/20 rounded-xl p-8 text-center border border-border">
           <p className="text-muted-foreground">
             No email data for this period
           </p>
