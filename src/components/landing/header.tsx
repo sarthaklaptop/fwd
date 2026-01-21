@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { createClient } from '@/lib/supabase/client';
 
 interface NavLink {
   href: string;
@@ -19,7 +20,6 @@ const defaultNavLinks: NavLink[] = [
   { href: '/#api', label: 'API' },
   { href: '/#features', label: 'Features' },
   { href: '/pricing', label: 'Pricing' },
-  { href: '/auth/login', label: 'Login' },
 ];
 
 export function Header({
@@ -27,6 +27,20 @@ export function Header({
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] =
     useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<
+    boolean | null
+  >(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+    };
+    checkAuth();
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
@@ -50,13 +64,33 @@ export function Header({
                 {link.label}
               </Link>
             ))}
-            <ThemeToggle />
-            <Link
-              href="/auth/login"
-              className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Get Started
-            </Link>
+            {isLoggedIn === null ? null : isLoggedIn ? (
+              <>
+                <ThemeToggle />
+                <Link
+                  href="/dashboard"
+                  className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="font-mono uppercase text-xs font-medium px-3 py-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors duration-200"
+                >
+                  Login
+                </Link>
+                <ThemeToggle />
+                <Link
+                  href="/auth/signup"
+                  className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -99,13 +133,36 @@ export function Header({
                     {link.label}
                   </Link>
                 ))}
-                <Link
-                  href="/auth/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm px-4 py-2.5 mt-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-center"
-                >
-                  Get Started
-                </Link>
+                {isLoggedIn ? (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm px-4 py-2.5 mt-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-center"
+                  >
+                    Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth/login"
+                      onClick={() =>
+                        setMobileMenuOpen(false)
+                      }
+                      className="font-mono uppercase text-xs font-medium px-3 py-2.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors duration-200"
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      href="/auth/signup"
+                      onClick={() =>
+                        setMobileMenuOpen(false)
+                      }
+                      className="text-sm px-4 py-2.5 mt-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-center"
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.nav>
           )}
