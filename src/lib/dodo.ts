@@ -1,5 +1,4 @@
-'use server';
-
+import 'server-only';
 import DodoPayments from 'dodopayments';
 
 // DodoPayments client instance
@@ -9,5 +8,10 @@ export const dodo = new DodoPayments({
 });
 
 // Product ID for FWD Pro subscription
-export const FWD_PRO_PRODUCT_ID =
-  process.env.DODO_PRODUCT_ID!;
+const productId = process.env.DODO_PRODUCT_ID;
+if (!productId) {
+  throw new Error(
+    'Missing required environment variable: DODO_PRODUCT_ID',
+  );
+}
+export const FWD_PRO_PRODUCT_ID = productId;
