@@ -14,7 +14,7 @@ export default function DomainsLoading() {
       </div>
 
       <div className="flex justify-between items-center">
-        <div className="h-4 w-24 bg-secondary rounded animate-pulse" />
+        <div className="h-4 w-24 bg-muted/50 rounded animate-pulse" />
         <div className="h-9 w-32 bg-primary/30 rounded-lg animate-pulse" />
       </div>
 
