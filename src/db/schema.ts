@@ -41,6 +41,12 @@ export const suppressionSourceEnum = pgEnum(
   ['ses', 'link', 'api', 'dashboard'],
 );
 
+// Subscription status enum
+export const subscriptionStatusEnum = pgEnum(
+  'subscription_status',
+  ['free', 'active', 'cancelled', 'on_hold', 'expired'],
+);
+
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
@@ -48,6 +54,24 @@ export const users = pgTable('users', {
     .notNull()
     .unique(),
   name: varchar('name', { length: 255 }),
+  // Subscription fields
+  plan: varchar('plan', { length: 50 })
+    .default('free')
+    .notNull(),
+  subscriptionId: varchar('subscription_id', {
+    length: 255,
+  }),
+  subscriptionStatus: subscriptionStatusEnum(
+    'subscription_status',
+  )
+    .default('free')
+    .notNull(),
+  customerId: varchar('customer_id', { length: 255 }),
+  currentPeriodEnd: timestamp('current_period_end'),
+  cancelAtPeriodEnd: boolean(
+    'cancel_at_period_end',
+  ).default(false),
+  // Soft delete fields
   isDeleted: boolean('is_deleted').default(false).notNull(),
   deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
