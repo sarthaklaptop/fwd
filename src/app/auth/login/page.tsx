@@ -47,7 +47,15 @@ function LoginForm() {
       setLoading(false);
     } else {
       toast.success('Welcome back!');
-      router.push('/dashboard');
+
+      // Check for redirect param (e.g., from pricing page upgrade flow)
+      const redirect = searchParams.get('redirect');
+      if (redirect === 'upgrade') {
+        // Redirect to billing page which will trigger checkout
+        router.push('/dashboard/billing?action=upgrade');
+      } else {
+        router.push('/dashboard');
+      }
       router.refresh();
     }
   };

@@ -19,7 +19,12 @@ export async function POST(request: NextRequest) {
 
     if (!authUser) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        {
+          success: false,
+          error: 'Please log in to upgrade to Pro',
+          code: 'UNAUTHORIZED',
+          redirect: '/auth/login?redirect=upgrade',
+        },
         { status: 401 },
       );
     }

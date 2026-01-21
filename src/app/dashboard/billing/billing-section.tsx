@@ -50,7 +50,40 @@ export default function BillingSection() {
         '/dashboard/billing',
       );
     }
+
+    // Auto-trigger checkout if redirected from login with upgrade intent
+    const action = searchParams.get('action');
+    if (action === 'upgrade') {
+      window.history.replaceState(
+        {},
+        '',
+        '/dashboard/billing',
+      );
+      handleUpgradeFromRedirect();
+    }
   }, [searchParams]);
+
+  async function handleUpgradeFromRedirect() {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+      });
+      const data = await res.json();
+
+      if (data.success && data.data.checkoutUrl) {
+        window.location.href = data.data.checkoutUrl;
+      } else {
+        toast.error(
+          data.error || 'Failed to start checkout',
+        );
+        setUpgrading(false);
+      }
+    } catch (error) {
+      toast.error('Failed to start checkout');
+      setUpgrading(false);
+    }
+  }
 
   async function fetchSubscription() {
     try {
