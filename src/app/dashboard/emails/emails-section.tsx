@@ -216,7 +216,7 @@ export default function EmailsSection() {
       <div className="overflow-x-auto border border-border rounded-xl">
         <table className="w-full">
           <thead>
-            <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-secondary/30">
+            <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
               <th className="px-4 py-3">To</th>
               <th className="px-4 py-3">Subject</th>
               <th className="px-4 py-3">Status</th>
@@ -229,19 +229,19 @@ export default function EmailsSection() {
               [...Array(5)].map((_, i) => (
                 <tr key={i} className="animate-pulse">
                   <td className="px-4 py-3">
-                    <div className="h-4 bg-secondary rounded w-32"></div>
+                    <div className="h-4 bg-muted/50 rounded w-32"></div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-4 bg-secondary rounded w-48"></div>
+                    <div className="h-4 bg-muted/50 rounded w-48"></div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-6 bg-secondary rounded-full w-20"></div>
+                    <div className="h-6 bg-muted/50 rounded-full w-20"></div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-4 bg-secondary rounded w-16"></div>
+                    <div className="h-4 bg-muted/50 rounded w-16"></div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-4 bg-secondary rounded w-20"></div>
+                    <div className="h-4 bg-muted/50 rounded w-20"></div>
                   </td>
                 </tr>
               ))
@@ -536,7 +536,7 @@ function EmailDetailModal({
                   <p className="text-muted-foreground text-sm mb-2">
                     Text Content
                   </p>
-                  <pre className="bg-secondary rounded-lg p-4 text-foreground text-sm whitespace-pre-wrap overflow-x-auto border border-border">
+                  <pre className="bg-muted/30 rounded-lg p-4 text-foreground text-sm whitespace-pre-wrap overflow-x-auto border border-border">
                     {email.text}
                   </pre>
                 </div>
@@ -636,7 +636,7 @@ function StatusFilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center justify-between gap-2 px-4 py-2 min-w-[140px] bg-transparent border border-border rounded-lg text-foreground text-sm hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+        className="inline-flex items-center justify-between gap-2 px-4 py-2 min-w-[140px] bg-transparent border border-border rounded-lg text-foreground text-sm hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
       >
         <span>{selectedOption.label}</span>
         <ChevronDown
@@ -658,7 +658,7 @@ function StatusFilterDropdown({
               className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
                 value === option.value
                   ? 'bg-primary/10 text-primary'
-                  : 'text-foreground hover:bg-secondary/50'
+                  : 'text-foreground hover:bg-primary/10'
               }`}
             >
               <span>{option.label}</span>

@@ -40,7 +40,7 @@ export function NewKeyModal({
             Copy this key now! It won&apos;t be shown again.
           </p>
         </div>
-        <div className="bg-secondary p-4 rounded-lg mb-4 font-mono text-sm text-green-600 dark:text-green-400 break-all border border-border">
+        <div className="bg-muted/30 p-4 rounded-lg mb-4 font-mono text-sm text-green-600 dark:text-green-400 break-all border border-border">
           {newKey}
         </div>
         <div className="flex gap-3">

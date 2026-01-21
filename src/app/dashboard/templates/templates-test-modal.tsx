@@ -27,7 +27,7 @@ interface TestEmailModalProps {
 // Smart sample values based on variable name
 function getSampleValue(
   varName: string,
-  userEmail: string
+  userEmail: string,
 ): string {
   const lower = varName.toLowerCase();
   if (lower.includes('name') && lower.includes('first'))
@@ -51,7 +51,9 @@ function extractVariables(text: string): string[] {
   const matches = text.match(/\{\{([^}]+)\}\}/g) || [];
   return [
     ...new Set(
-      matches.map((m) => m.replace(/\{\{|\}\}/g, '').trim())
+      matches.map((m) =>
+        m.replace(/\{\{|\}\}/g, '').trim(),
+      ),
     ),
   ];
 }
@@ -134,7 +136,7 @@ export function TestEmailModal({
       toast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to send'
+          : 'Failed to send',
       );
     }
     setSending(false);
@@ -147,7 +149,7 @@ export function TestEmailModal({
     detectedVars.forEach((v) => {
       preview = preview.replace(
         new RegExp(`\\{\\{${v}\\}\\}`, 'g'),
-        variables[v] || `{{${v}}}`
+        variables[v] || `{{${v}}}`,
       );
     });
     return preview;
@@ -233,7 +235,7 @@ export function TestEmailModal({
                         key={varName}
                         className="flex gap-2"
                       >
-                        <span className="flex items-center px-3 py-2 bg-secondary/50 rounded-lg text-sm font-mono min-w-[120px] text-muted-foreground">
+                        <span className="flex items-center px-3 py-2 bg-muted/30 rounded-lg text-sm font-mono min-w-[120px] text-muted-foreground">
                           {`{{${varName}}}`}
                         </span>
                         <input
@@ -255,7 +257,7 @@ export function TestEmailModal({
               )}
 
               {/* Subject Preview */}
-              <div className="p-3 bg-secondary/30 rounded-lg border border-border">
+              <div className="p-3 bg-muted/20 rounded-lg border border-border">
                 <p className="text-xs text-muted-foreground mb-1">
                   Subject Preview:
                 </p>

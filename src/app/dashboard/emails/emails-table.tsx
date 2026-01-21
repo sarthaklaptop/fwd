@@ -29,7 +29,7 @@ export default function EmailsTable({
     <div className="overflow-x-auto border border-border rounded-xl">
       <table className="w-full">
         <thead>
-          <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-secondary/30">
+          <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
             <th className="px-4 py-3">To</th>
             <th className="px-4 py-3">Subject</th>
             <th className="px-4 py-3">Status</th>

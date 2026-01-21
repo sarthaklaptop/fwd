@@ -235,7 +235,7 @@ export default function DashboardSidebar({
                   };
                   return (
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div className="flex-1 h-1.5 bg-muted/30 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${getBarColor()}`}
                           style={{

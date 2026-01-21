@@ -53,7 +53,7 @@ export function CreateCampaignModal({
 }: CreateCampaignModalProps) {
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<Template[]>(
-    []
+    [],
   );
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedTemplate, setSelectedTemplate] =
@@ -100,7 +100,7 @@ export function CreateCampaignModal({
       if (
         domainDropdownRef.current &&
         !domainDropdownRef.current.contains(
-          event.target as Node
+          event.target as Node,
         )
       ) {
         setDomainDropdownOpen(false);
@@ -108,12 +108,12 @@ export function CreateCampaignModal({
     }
     document.addEventListener(
       'mousedown',
-      handleClickOutside
+      handleClickOutside,
     );
     return () =>
       document.removeEventListener(
         'mousedown',
-        handleClickOutside
+        handleClickOutside,
       );
   }, []);
 
@@ -171,15 +171,15 @@ export function CreateCampaignModal({
 
       // Find and select the template
       const template = templates.find(
-        (t) => t.id === dupFrom.templateId
+        (t) => t.id === dupFrom.templateId,
       );
       if (template && !cancelled) {
         setSelectedTemplate(template);
         const subjectVars = extractTemplateVariables(
-          template.subject
+          template.subject,
         );
         const htmlVars = extractTemplateVariables(
-          template.html
+          template.html,
         );
         const allVars = [
           ...new Set([...subjectVars, ...htmlVars]),
@@ -190,7 +190,7 @@ export function CreateCampaignModal({
       // Parse and set from address
       if (dupFrom.fromEmail && !cancelled) {
         const emailMatch = dupFrom.fromEmail.match(
-          /<(.+)>/
+          /<(.+)>/,
         ) || [null, dupFrom.fromEmail];
         const email = emailMatch[1] || dupFrom.fromEmail;
         const [prefix, domainPart] = email.split('@');
@@ -203,7 +203,7 @@ export function CreateCampaignModal({
 
         setFromPrefix(prefix);
         const matchedDomain = domains.find(
-          (d) => d.domain === domainPart
+          (d) => d.domain === domainPart,
         );
         if (matchedDomain) setSelectedDomain(matchedDomain);
       }
@@ -212,7 +212,7 @@ export function CreateCampaignModal({
       if (dupFrom.batchId && !cancelled) {
         try {
           const res = await fetch(
-            `/api/batches/${dupFrom.batchId}`
+            `/api/batches/${dupFrom.batchId}`,
           );
           const data = await res.json();
           if (
@@ -291,19 +291,19 @@ export function CreateCampaignModal({
       const response = await res.json();
       if (response.success) {
         const verifiedDomains = response.data.filter(
-          (d: Domain) => d.status === 'verified'
+          (d: Domain) => d.status === 'verified',
         );
         setDomains(verifiedDomains);
         // Set first domain as default if not already set
         if (verifiedDomains.length > 0 && !selectedDomain) {
           const lastDomainId = localStorage.getItem(
-            'fwd_last_domain_id'
+            'fwd_last_domain_id',
           );
           const lastDomain = verifiedDomains.find(
-            (d: Domain) => d.id === lastDomainId
+            (d: Domain) => d.id === lastDomainId,
           );
           setSelectedDomain(
-            lastDomain || verifiedDomains[0]
+            lastDomain || verifiedDomains[0],
           );
         }
       }
@@ -316,7 +316,7 @@ export function CreateCampaignModal({
 
   // Extract template variables like {{name}}, {{organization}} from HTML
   function extractTemplateVariables(
-    html: string
+    html: string,
   ): string[] {
     const regex = /\{\{(\w+)\}\}/g;
     const variables = new Set<string>();
@@ -332,10 +332,10 @@ export function CreateCampaignModal({
     setSelectedTemplate(template);
     // Extract from both subject and HTML, remove duplicates
     const subjectVars = extractTemplateVariables(
-      template.subject
+      template.subject,
     );
     const htmlVars = extractTemplateVariables(
-      template.html
+      template.html,
     );
     const allVars = [
       ...new Set([...subjectVars, ...htmlVars]),
@@ -434,25 +434,25 @@ export function CreateCampaignModal({
         // Save last used values
         localStorage.setItem(
           'fwd_last_from_name',
-          fromName
+          fromName,
         );
         localStorage.setItem(
           'fwd_last_from_prefix',
-          fromPrefix
+          fromPrefix,
         );
         localStorage.setItem(
           'fwd_last_domain_id',
-          selectedDomain.id
+          selectedDomain.id,
         );
 
         toast.success(
-          response.message || 'Campaign sent successfully!'
+          response.message || 'Campaign sent successfully!',
         );
         onSuccess();
         onClose();
       } else {
         toast.error(
-          response.message || 'Failed to send campaign'
+          response.message || 'Failed to send campaign',
         );
       }
     } catch (err) {
@@ -546,7 +546,7 @@ export function CreateCampaignModal({
                             selectedTemplate?.id ===
                             template.id
                               ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50 hover:bg-secondary/30'
+                              : 'border-border hover:border-primary/50 hover:bg-primary/10'
                           }`}
                         >
                           <p className="font-medium text-foreground truncate">
@@ -578,7 +578,7 @@ export function CreateCampaignModal({
                             setFromName(e.target.value)
                           }
                           placeholder="My Newsletter"
-                          className="w-full px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
+                          className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm"
                         />
                       </div>
 
@@ -594,12 +594,12 @@ export function CreateCampaignModal({
                               setFromPrefix(
                                 e.target.value.replace(
                                   /[^a-zA-Z0-9._-]/g,
-                                  ''
-                                )
+                                  '',
+                                ),
                               )
                             }
                             placeholder="newsletter"
-                            className="flex-1 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono"
+                            className="flex-1 px-3 py-2 bg-muted/20 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-sm font-mono"
                           />
                           <span className="flex items-center text-muted-foreground text-sm">
                             @
@@ -612,10 +612,10 @@ export function CreateCampaignModal({
                               type="button"
                               onClick={() =>
                                 setDomainDropdownOpen(
-                                  !domainDropdownOpen
+                                  !domainDropdownOpen,
                                 )
                               }
-                              className="w-full min-w-[140px] flex items-center justify-between gap-2 px-3 py-2 bg-secondary/30 border border-border rounded-lg text-foreground text-sm font-mono hover:bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
+                              className="w-full min-w-[140px] flex items-center justify-between gap-2 px-3 py-2 bg-muted/20 border border-border rounded-lg text-foreground text-sm font-mono hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                             >
                               <span
                                 className={
@@ -650,17 +650,17 @@ export function CreateCampaignModal({
                                       type="button"
                                       onClick={() => {
                                         setSelectedDomain(
-                                          domain
+                                          domain,
                                         );
                                         setDomainDropdownOpen(
-                                          false
+                                          false,
                                         );
                                       }}
                                       className={`w-full flex items-center justify-between px-3 py-2 text-sm font-mono text-left transition-colors ${
                                         selectedDomain?.id ===
                                         domain.id
                                           ? 'bg-primary/10 text-primary'
-                                          : 'text-foreground hover:bg-secondary/50'
+                                          : 'text-foreground hover:bg-primary/10'
                                       }`}
                                     >
                                       <span>
@@ -777,7 +777,7 @@ export function CreateCampaignModal({
                                     .charAt(0)
                                     .toUpperCase() +
                                   v.slice(1)
-                                } Value`
+                                } Value`,
                           )
                           .join(', ')}
                       </p>
@@ -804,10 +804,10 @@ export function CreateCampaignModal({
                                       .charAt(0)
                                       .toUpperCase() +
                                     v.slice(1)
-                                  } Value`
+                                  } Value`,
                             )
                             .join(
-                              ', '
+                              ', ',
                             )}\njane@example.com, ${templateVariables
                             .map((v, i) =>
                               i === 0
@@ -817,12 +817,12 @@ export function CreateCampaignModal({
                                       .charAt(0)
                                       .toUpperCase() +
                                     v.slice(1)
-                                  }`
+                                  }`,
                             )
                             .join(', ')}`
                         : `john@example.com\njane@example.com`
                     }
-                    className="w-full h-48 px-4 py-3 bg-secondary/30 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-foreground placeholder:text-muted-foreground font-mono text-sm"
+                    className="w-full h-48 px-4 py-3 bg-muted/20 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-foreground placeholder:text-muted-foreground font-mono text-sm"
                   />
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Upload className="w-4 h-4" />
@@ -932,7 +932,7 @@ export function CreateCampaignModal({
                     parseRecipients().length === 0
                   ) {
                     setError(
-                      'Please add at least one recipient'
+                      'Please add at least one recipient',
                     );
                     return;
                   }

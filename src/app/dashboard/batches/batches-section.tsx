@@ -64,12 +64,12 @@ export default function BatchesSection() {
       setShowCreateModal(true);
     window.addEventListener(
       'cmd:new-campaign',
-      handleNewCampaign
+      handleNewCampaign,
     );
     return () =>
       window.removeEventListener(
         'cmd:new-campaign',
-        handleNewCampaign
+        handleNewCampaign,
       );
   }, []);
 
@@ -225,12 +225,12 @@ function StatusFilterDropdown({
     }
     document.addEventListener(
       'mousedown',
-      handleClickOutside
+      handleClickOutside,
     );
     return () =>
       document.removeEventListener(
         'mousedown',
-        handleClickOutside
+        handleClickOutside,
       );
   }, []);
 
@@ -243,7 +243,7 @@ function StatusFilterDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center justify-between gap-2 px-4 py-2 min-w-[140px] bg-transparent border border-border rounded-lg text-foreground text-sm hover:bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
+        className="inline-flex items-center justify-between gap-2 px-4 py-2 min-w-[140px] bg-transparent border border-border rounded-lg text-foreground text-sm hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
       >
         <span>{selectedOption.label}</span>
         <ChevronDown
@@ -265,7 +265,7 @@ function StatusFilterDropdown({
               className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors ${
                 value === option.value
                   ? 'bg-primary/10 text-primary'
-                  : 'text-foreground hover:bg-secondary/50'
+                  : 'text-foreground hover:bg-primary/10'
               }`}
             >
               <span>{option.label}</span>
