@@ -17,7 +17,7 @@ export function BatchesTable({
     <div className="overflow-x-auto border border-border rounded-xl">
       <table className="w-full">
         <thead>
-          <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-secondary/30">
+          <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
             <th className="px-4 py-3">Template</th>
             <th className="px-4 py-3">Recipients</th>
             <th className="px-4 py-3">Status</th>
@@ -31,22 +31,22 @@ export function BatchesTable({
             [...Array(5)].map((_, i) => (
               <tr key={i} className="animate-pulse">
                 <td className="px-4 py-3">
-                  <div className="h-4 bg-secondary rounded w-24"></div>
+                  <div className="h-4 bg-muted/50 rounded w-24"></div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="h-4 bg-secondary rounded w-16"></div>
+                  <div className="h-4 bg-muted/50 rounded w-16"></div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="h-6 bg-secondary rounded-full w-20"></div>
+                  <div className="h-6 bg-muted/50 rounded-full w-20"></div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="h-4 bg-secondary rounded w-12"></div>
+                  <div className="h-4 bg-muted/50 rounded w-12"></div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="h-4 bg-secondary rounded w-8"></div>
+                  <div className="h-4 bg-muted/50 rounded w-8"></div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="h-4 bg-secondary rounded w-20"></div>
+                  <div className="h-4 bg-muted/50 rounded w-20"></div>
                 </td>
               </tr>
             ))
@@ -164,8 +164,8 @@ export function SuccessRate({
     rate >= 90
       ? 'text-green-500 dark:text-green-400'
       : rate >= 70
-      ? 'text-yellow-500 dark:text-yellow-400'
-      : 'text-red-500 dark:text-red-400';
+        ? 'text-yellow-500 dark:text-yellow-400'
+        : 'text-red-500 dark:text-red-400';
 
   return (
     <span className={`font-medium ${color}`}>{rate}%</span>

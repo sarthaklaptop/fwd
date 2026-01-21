@@ -45,7 +45,7 @@ export function BatchDetailModal({
                   • {displayBatch.queued} emails
                 </p>
               ) : (
-                <div className="h-4 bg-secondary rounded w-32 animate-pulse"></div>
+                <div className="h-4 bg-muted/50 rounded w-32 animate-pulse"></div>
               )}
             </div>
           </div>
@@ -178,7 +178,7 @@ export function BatchDetailModal({
                 </h4>
                 <div className="rounded-xl overflow-hidden max-h-64 overflow-y-auto border border-border">
                   <table className="w-full text-sm">
-                    <thead className="bg-secondary/30 sticky top-0 border-b border-border">
+                    <thead className="bg-muted/20 sticky top-0 border-b border-border">
                       <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
                         <th className="px-4 py-2">
                           Recipient
@@ -235,19 +235,19 @@ function ModalSkeleton() {
             key={i}
             className="border border-border rounded-lg p-3"
           >
-            <div className="h-3 bg-secondary rounded w-12 mb-2"></div>
-            <div className="h-6 bg-secondary rounded w-8"></div>
+            <div className="h-3 bg-muted/50 rounded w-12 mb-2"></div>
+            <div className="h-6 bg-muted/50 rounded w-8"></div>
           </div>
         ))}
       </div>
       <div>
-        <div className="h-4 bg-secondary rounded w-24 mb-3"></div>
+        <div className="h-4 bg-muted/50 rounded w-24 mb-3"></div>
         <div className="border border-border rounded-xl overflow-hidden">
-          <div className="bg-secondary/30 px-4 py-2 border-b border-border">
+          <div className="bg-muted/20 px-4 py-2 border-b border-border">
             <div className="flex gap-8">
-              <div className="h-3 bg-secondary rounded w-16"></div>
-              <div className="h-3 bg-secondary rounded w-12"></div>
-              <div className="h-3 bg-secondary rounded w-12"></div>
+              <div className="h-3 bg-muted/50 rounded w-16"></div>
+              <div className="h-3 bg-muted/50 rounded w-12"></div>
+              <div className="h-3 bg-muted/50 rounded w-12"></div>
             </div>
           </div>
           {[...Array(5)].map((_, i) => (
@@ -256,9 +256,9 @@ function ModalSkeleton() {
               className="px-4 py-3 border-b border-border last:border-0"
             >
               <div className="flex gap-8">
-                <div className="h-4 bg-secondary rounded w-32"></div>
-                <div className="h-4 bg-secondary rounded w-16"></div>
-                <div className="h-4 bg-secondary rounded w-4"></div>
+                <div className="h-4 bg-muted/50 rounded w-32"></div>
+                <div className="h-4 bg-muted/50 rounded w-16"></div>
+                <div className="h-4 bg-muted/50 rounded w-4"></div>
               </div>
             </div>
           ))}
