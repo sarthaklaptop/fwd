@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { domains } from '@/db/schema';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { ses } from '@/lib/ses';
 import {
   VerifyDomainIdentityCommand,
   VerifyDomainDkimCommand,
 } from '@aws-sdk/client-ses';
+import { checkDomainLimit } from '@/lib/plan-limits';
 
 // Get user's domains
 export async function GET() {
@@ -20,7 +21,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -51,7 +52,7 @@ export async function GET() {
     console.error('Error fetching domains:', error);
     return NextResponse.json(
       { error: 'Failed to fetch domains' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
     if (!domain) {
       return NextResponse.json(
         { error: 'Domain is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -96,23 +97,18 @@ export async function POST(req: Request) {
           error:
             'Invalid domain format. Example: example.com or mail.example.co.uk',
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Check domain limit (max 5 per user)
-    const MAX_DOMAINS = 5;
-    const [domainCount] = await db
-      .select({ count: count() })
-      .from(domains)
-      .where(eq(domains.userId, user.id));
-
-    if ((domainCount?.count || 0) >= MAX_DOMAINS) {
+    // Check plan-based domain limit
+    const domainLimitCheck = await checkDomainLimit(
+      user.id,
+    );
+    if (!domainLimitCheck.allowed) {
       return NextResponse.json(
-        {
-          error: `Maximum ${MAX_DOMAINS} domains allowed per account`,
-        },
-        { status: 400 }
+        { error: domainLimitCheck.error },
+        { status: 403 },
       );
     }
 
@@ -120,14 +116,14 @@ export async function POST(req: Request) {
     const existing = await db.query.domains.findFirst({
       where: and(
         eq(domains.userId, user.id),
-        eq(domains.domain, cleanDomain)
+        eq(domains.domain, cleanDomain),
       ),
     });
 
     if (existing) {
       return NextResponse.json(
         { error: 'Domain already added' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -135,14 +131,14 @@ export async function POST(req: Request) {
     await ses.send(
       new VerifyDomainIdentityCommand({
         Domain: cleanDomain,
-      })
+      }),
     );
 
     // Step 2: Get DKIM tokens
     const dkimResponse = await ses.send(
       new VerifyDomainDkimCommand({
         Domain: cleanDomain,
-      })
+      }),
     );
 
     const dkimTokens = dkimResponse.DkimTokens || [];
@@ -186,7 +182,7 @@ export async function POST(req: Request) {
     console.error('Error adding domain:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to add domain' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -10,13 +10,12 @@ import {
   templates,
   domains,
 } from '@/db/schema';
-import { eq, and, isNull, gte, count } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { hashApiKey } from '@/lib/api-keys';
 import { injectOpenTracking } from '@/lib/tracking';
 import { substituteVariables } from '@/lib/templates';
 import { publishEvent } from '@/lib/events';
-
-const DAILY_LIMIT = 100;
+import { checkEmailLimit } from '@/lib/plan-limits';
 
 // Default sender email for free users
 const DEFAULT_FROM_EMAIL =
@@ -26,7 +25,7 @@ const DEFAULT_FROM_EMAIL =
 // Validate and get sender email address
 async function validateFromAddress(
   fromInput: string | undefined,
-  userId: string
+  userId: string,
 ): Promise<{
   valid: boolean;
   fromEmail: string;
@@ -68,7 +67,7 @@ async function validateFromAddress(
     where: and(
       eq(domains.userId, userId),
       eq(domains.domain, domain),
-      eq(domains.status, 'verified')
+      eq(domains.status, 'verified'),
     ),
   });
 
@@ -92,7 +91,7 @@ export async function POST(req: Request) {
           error:
             'Missing API key. Include x-api-key header.',
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -112,14 +111,14 @@ export async function POST(req: Request) {
     const keyRecord = await db.query.apiKeys.findFirst({
       where: and(
         eq(apiKeys.keyHash, keyHash),
-        isNull(apiKeys.revokedAt)
+        isNull(apiKeys.revokedAt),
       ),
     });
 
     if (!keyRecord) {
       return NextResponse.json(
         { error: 'Invalid or revoked API key' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -127,7 +126,7 @@ export async function POST(req: Request) {
       const template = await db.query.templates.findFirst({
         where: and(
           eq(templates.id, templateId),
-          eq(templates.userId, keyRecord.userId)
+          eq(templates.userId, keyRecord.userId),
         ),
       });
 
@@ -136,7 +135,7 @@ export async function POST(req: Request) {
           {
             error: 'Template not found or not owned by you',
           },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -151,41 +150,31 @@ export async function POST(req: Request) {
           error:
             'Missing fields: to, subject, and html or text required',
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Check plan-based monthly email limit
+    const emailLimitCheck = await checkEmailLimit(
+      keyRecord.userId,
+    );
 
-    const [emailCount] = await db
-      .select({ count: count() })
-      .from(emails)
-      .where(
-        and(
-          eq(emails.userId, keyRecord.userId),
-          gte(emails.createdAt, today)
-        )
-      );
-
-    const emailsSentToday = emailCount?.count || 0;
-    const remaining = DAILY_LIMIT - emailsSentToday;
-
-    if (emailsSentToday >= DAILY_LIMIT) {
+    if (!emailLimitCheck.allowed) {
       return NextResponse.json(
-        {
-          error:
-            'Daily limit reached (100 emails/day). Resets at midnight UTC.',
-        },
+        { error: emailLimitCheck.error },
         {
           status: 429,
           headers: {
-            'X-RateLimit-Limit': String(DAILY_LIMIT),
+            'X-RateLimit-Limit': String(
+              emailLimitCheck.limit,
+            ),
             'X-RateLimit-Remaining': '0',
           },
-        }
+        },
       );
     }
+
+    const { limit: rateLimit, remaining } = emailLimitCheck;
 
     const recipientEmail = (
       Array.isArray(to) ? to[0] : to
@@ -200,19 +189,19 @@ export async function POST(req: Request) {
         {
           error: `Email to ${recipientEmail} blocked: recipient is on suppression list (${suppressed.reason})`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate custom from address
     const fromValidation = await validateFromAddress(
       from,
-      keyRecord.userId
+      keyRecord.userId,
     );
     if (!fromValidation.valid) {
       return NextResponse.json(
         { error: fromValidation.error },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const validatedFrom = fromValidation.fromEmail;
@@ -235,7 +224,7 @@ export async function POST(req: Request) {
     if (!isProd) {
       // DEV: Direct Send via SES
       console.log(
-        '📧 [DEV MODE] Sending email directly...'
+        '📧 [DEV MODE] Sending email directly...',
       );
 
       const baseUrl =
@@ -264,7 +253,7 @@ export async function POST(req: Request) {
       });
       const response = await ses.send(command);
       console.log(
-        `✅ [DEV MODE] Email sent! SES ID: ${response.MessageId}`
+        `✅ [DEV MODE] Email sent! SES ID: ${response.MessageId}`,
       );
 
       db.update(emails)
@@ -290,7 +279,7 @@ export async function POST(req: Request) {
           emailId: emailRecord.id,
           to: Array.isArray(to) ? to[0] : to,
           templateId,
-        }
+        },
       );
 
       return NextResponse.json(
@@ -300,16 +289,16 @@ export async function POST(req: Request) {
           messageId: response.MessageId,
           status: 'sent',
           rateLimit: {
-            limit: DAILY_LIMIT,
+            limit: rateLimit,
             remaining: remaining - 1,
           },
         },
         {
           headers: {
-            'X-RateLimit-Limit': String(DAILY_LIMIT),
+            'X-RateLimit-Limit': String(rateLimit),
             'X-RateLimit-Remaining': String(remaining - 1),
           },
-        }
+        },
       );
     }
 
@@ -356,22 +345,22 @@ export async function POST(req: Request) {
         messageId: response.messageId,
         status: 'queued',
         rateLimit: {
-          limit: DAILY_LIMIT,
+          limit: rateLimit,
           remaining: remaining - 1,
         },
       },
       {
         headers: {
-          'X-RateLimit-Limit': String(DAILY_LIMIT),
+          'X-RateLimit-Limit': String(rateLimit),
           'X-RateLimit-Remaining': String(remaining - 1),
         },
-      }
+      },
     );
   } catch (error: any) {
     console.error('Email error:', error);
     return NextResponse.json(
       { error: 'Failed to send email' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
