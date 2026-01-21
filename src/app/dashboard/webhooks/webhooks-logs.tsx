@@ -49,7 +49,7 @@ export function LogsModal({
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className="h-10 bg-secondary rounded"
+                  className="h-10 bg-muted/50 rounded"
                 ></div>
               ))}
             </div>

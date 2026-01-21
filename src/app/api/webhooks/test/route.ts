@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return new ApiError(
       401,
-      'Please log in to test webhooks'
+      'Please log in to test webhooks',
     ).send();
   }
 
@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
   if (!webhookId || !eventType) {
     return new ApiError(
       400,
-      'Please provide webhookId and eventType'
+      'Please provide webhookId and eventType',
     ).send();
   }
 
   const webhook = await db.query.webhooks.findFirst({
     where: and(
       eq(webhooks.id, webhookId),
-      eq(webhooks.userId, user.id)
+      eq(webhooks.userId, user.id),
     ),
   });
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     const timestamp = Math.floor(Date.now() / 1000);
     const signaturePayload = `${timestamp}.${JSON.stringify(
-      payload
+      payload,
     )}`;
     const signature = crypto
       .createHmac('sha256', webhook.secret)
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       .digest('hex');
 
     console.log(
-      `⚡ Sending test webhook to ${webhook.url}`
+      `⚡ Sending test webhook to ${webhook.url}`,
     );
 
     const response = await fetch(webhook.url, {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         status: response.status,
         responseBody,
       },
-      `Test event sent! Status: ${response.status}`
+      `Test event sent! Status`,
     ).send();
   } catch (error: any) {
     console.error('Test webhook failed:', error);
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     return new ApiError(
       500,
-      'Failed to send test webhook'
+      'Failed to send test webhook',
     ).send();
   }
 }
