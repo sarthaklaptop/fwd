@@ -56,7 +56,7 @@ export default function AnalyticsSection() {
           <div className="h-32 bg-muted/50 rounded-xl"></div>
           <div className="h-32 bg-muted/50 rounded-xl"></div>
         </div>
-        <div className="h-64 bg-secondary rounded-xl"></div>
+        <div className="h-64 bg-muted/50 rounded-xl"></div>
       </div>
     );
   }

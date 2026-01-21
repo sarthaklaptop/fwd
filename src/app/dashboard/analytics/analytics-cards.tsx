@@ -59,7 +59,7 @@ export function RateCard({
       <p className="text-muted-foreground/70 text-xs mt-2">
         {subtitle}
       </p>
-      <div className="mt-4 h-2 bg-secondary rounded-full overflow-hidden">
+      <div className="mt-4 h-2 bg-muted/30 rounded-full overflow-hidden">
         <div
           className={`h-full ${style.bar} transition-all duration-500 rounded-full`}
           style={{
@@ -84,9 +84,9 @@ export function SkeletonCard({
       <p className="text-muted-foreground text-sm font-medium mb-2">
         {title}
       </p>
-      <div className="h-10 bg-secondary/70 rounded w-24 mb-2 animate-pulse"></div>
-      <div className="h-3 bg-secondary/50 rounded w-36 mb-4 animate-pulse"></div>
-      <div className="h-2 bg-secondary rounded-full w-full"></div>
+      <div className="h-10 bg-muted/50 rounded w-24 mb-2 animate-pulse"></div>
+      <div className="h-3 bg-muted/30 rounded w-36 mb-4 animate-pulse"></div>
+      <div className="h-2 bg-muted/30 rounded-full w-full"></div>
     </div>
   );
 }
@@ -120,15 +120,15 @@ export function SkeletonChart() {
             className="flex gap-0.5 items-end flex-1"
           >
             <div
-              className="w-3 bg-secondary rounded-t"
+              className="w-3 bg-muted/50 rounded-t"
               style={{ height: `${30 + ((i * 8) % 50)}%` }}
             ></div>
             <div
-              className="w-3 bg-secondary rounded-t"
+              className="w-3 bg-muted/50 rounded-t"
               style={{ height: `${20 + ((i * 5) % 40)}%` }}
             ></div>
             <div
-              className="w-3 bg-secondary rounded-t"
+              className="w-3 bg-muted/50 rounded-t"
               style={{ height: `${10 + ((i * 3) % 30)}%` }}
             ></div>
           </div>
