@@ -76,7 +76,7 @@ export function LogsModal({
                 {logs.map((log) => (
                   <tr
                     key={log.id}
-                    className="hover:bg-secondary/30 transition-colors"
+                    className="hover:bg-primary/5 transition-colors"
                   >
                     <td className="py-2 text-primary">
                       {log.eventType}

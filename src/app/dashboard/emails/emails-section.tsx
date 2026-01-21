@@ -56,7 +56,7 @@ export default function EmailsSection() {
   useEffect(() => {
     const timer = setTimeout(
       () => setDebouncedSearch(search),
-      500
+      500,
     );
     return () => clearTimeout(timer);
   }, [search]);
@@ -99,7 +99,7 @@ export default function EmailsSection() {
       setLoading(false);
       setLoadingMore(false);
     },
-    [debouncedSearch, statusFilter]
+    [debouncedSearch, statusFilter],
   );
 
   useEffect(() => {
@@ -137,7 +137,7 @@ export default function EmailsSection() {
       if (statusFilter) params.set('status', statusFilter);
 
       const res = await fetch(
-        `/api/emails/export?${params}`
+        `/api/emails/export?${params}`,
       );
       if (res.ok) {
         const blob = await res.blob();
@@ -269,7 +269,7 @@ export default function EmailsSection() {
                 <tr
                   key={email.id}
                   onClick={() => fetchEmailDetail(email)}
-                  className="hover:bg-secondary/30 transition-colors cursor-pointer"
+                  className="hover:bg-primary/5 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3 text-sm text-foreground font-medium">
                     {email.to}
@@ -618,12 +618,12 @@ function StatusFilterDropdown({
     }
     document.addEventListener(
       'mousedown',
-      handleClickOutside
+      handleClickOutside,
     );
     return () =>
       document.removeEventListener(
         'mousedown',
-        handleClickOutside
+        handleClickOutside,
       );
   }, []);
 

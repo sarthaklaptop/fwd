@@ -41,7 +41,7 @@ export default function EmailsTable({
           {emails.map((email) => (
             <tr
               key={email.id}
-              className="hover:bg-secondary/30 transition-colors"
+              className="hover:bg-primary/5 transition-colors"
             >
               <td className="px-4 py-3 text-sm text-foreground font-medium">
                 {email.to}

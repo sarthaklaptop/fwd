@@ -77,7 +77,7 @@ export function BatchesTable({
               <tr
                 key={batch.id}
                 onClick={() => onSelectBatch(batch)}
-                className="hover:bg-secondary/30 transition-colors cursor-pointer"
+                className="hover:bg-primary/5 transition-colors cursor-pointer"
               >
                 <td className="px-4 py-3 text-sm text-foreground font-medium">
                   {batch.templateName || 'Direct Send'}
