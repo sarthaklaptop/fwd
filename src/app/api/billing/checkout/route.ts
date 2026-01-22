@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         sessionId: session.session_id,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       '[Checkout] Error creating session:',
       error,
@@ -98,6 +98,8 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: 'Failed to create checkout session',
+        // Temporarily expose error for debugging
+        debug: error?.message || String(error),
       },
       { status: 500 },
     );

@@ -3,11 +3,11 @@ import DodoPayments from 'dodopayments';
 
 // DodoPayments client instance
 // Uses bearerToken from env for authentication
-// Set environment to test_mode for development, live_mode for production
+// Use DODO_LIVE_MODE=true to enable live payments (default: test_mode)
 export const dodo = new DodoPayments({
   bearerToken: process.env.DODO_API_KEY!,
   environment:
-    process.env.NODE_ENV === 'production'
+    process.env.DODO_LIVE_MODE === 'true'
       ? 'live_mode'
       : 'test_mode',
 });
