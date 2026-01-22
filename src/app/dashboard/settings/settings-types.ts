@@ -14,13 +14,24 @@ export interface UsageStats {
   templates: number;
   webhooks: number;
   batches: number;
-  emailsToday: number;
-  dailyLimit: number;
+  emailsThisMonth: number;
+  monthlyLimit: number;
+}
+
+export interface PlanInfo {
+  name: 'free' | 'pro';
+  displayName: string;
+  limits: {
+    emailsPerMonth: number;
+    domains: number;
+    templates: number;
+  };
 }
 
 export interface SettingsData {
   profile: UserProfile;
   usage: UsageStats;
+  plan: PlanInfo;
 }
 
 export type SettingsTab = 'profile' | 'account' | 'danger';

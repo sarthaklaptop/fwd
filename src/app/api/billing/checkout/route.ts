@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
         name: user.name || undefined,
       },
       return_url: successUrl,
+      // Restrict to card payments for global USD compatibility
+      allowed_payment_method_types: ['credit', 'debit'],
       metadata: {
         user_id: user.id,
         user_email: user.email,

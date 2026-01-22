@@ -236,7 +236,9 @@ export default function SettingsSection() {
   }
 
   const usagePercent =
-    (data.usage.emailsToday / data.usage.dailyLimit) * 100;
+    ((data.usage.emailsThisMonth || 0) /
+      (data.usage.monthlyLimit || 100)) *
+    100;
 
   return (
     <div className="space-y-6">
@@ -478,8 +480,8 @@ export default function SettingsSection() {
                 />
                 <StatCard
                   icon={<BarChart3 className="w-5 h-5" />}
-                  label="Today"
-                  value={`${data.usage.emailsToday}/${data.usage.dailyLimit}`}
+                  label="This Month"
+                  value={`${data.usage.emailsThisMonth || 0}/${(data.usage.monthlyLimit || 100) >= 1000 ? `${((data.usage.monthlyLimit || 100) / 1000).toFixed(0)}k` : data.usage.monthlyLimit || 100}`}
                   color="cyan"
                 />
               </div>
@@ -494,20 +496,34 @@ export default function SettingsSection() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-bold text-foreground">
-                      Free Tier
+                      {data.plan?.displayName ||
+                        'Free Tier'}
                     </span>
-                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                        data.plan?.name === 'pro'
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
                       Active
                     </span>
+                    {data.plan?.name === 'pro' && (
+                      <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                        PRO
+                      </span>
+                    )}
                   </div>
                   <p className="text-muted-foreground mt-1">
-                    {data.usage.dailyLimit} emails per day
+                    {data.usage.monthlyLimit?.toLocaleString() ||
+                      100}{' '}
+                    emails per month
                   </p>
                 </div>
                 <div className="flex-1 max-w-xs">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm text-muted-foreground">
-                      Daily Usage
+                      Monthly Usage
                     </p>
                     <span
                       className={`text-sm font-mono font-medium ${
@@ -518,8 +534,9 @@ export default function SettingsSection() {
                             : 'text-green-500'
                       }`}
                     >
-                      {data.usage.emailsToday} /{' '}
-                      {data.usage.dailyLimit}
+                      {data.usage.emailsThisMonth || 0} /{' '}
+                      {data.usage.monthlyLimit?.toLocaleString() ||
+                        100}
                     </span>
                   </div>
                   {/* Animated Progress Bar */}

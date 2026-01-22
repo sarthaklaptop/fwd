@@ -2,8 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
 import { emails, users } from '@/db/schema';
-import { eq, count, and, gte } from 'drizzle-orm';
+import { eq, and, gte, count } from 'drizzle-orm';
 import DashboardSidebar from './dashboard-sidebar';
+import {
+  getUserPlan,
+  getMonthlyEmailCount,
+  PLAN_LIMITS,
+} from '@/lib/plan-limits';
 
 export default async function DashboardLayout({
   children,
@@ -36,29 +41,19 @@ export default async function DashboardLayout({
           : 'account_not_found'),
     );
   }
-  // Get daily usage stats for sidebar
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  const todayStats = await db
-    .select({
-      count: count(),
-    })
-    .from(emails)
-    .where(
-      and(
-        eq(emails.userId, user.id),
-        gte(emails.createdAt, today),
-      ),
-    );
-
-  const emailsToday = todayStats[0]?.count || 0;
-  const DAILY_LIMIT = 100;
+  // Get plan-based monthly usage stats for sidebar
+  const plan = await getUserPlan(user.id);
+  const emailsThisMonth = await getMonthlyEmailCount(
+    user.id,
+  );
+  const monthlyLimit = PLAN_LIMITS[plan].emailsPerMonth;
 
   return (
     <DashboardSidebar
-      emailsToday={emailsToday}
-      dailyLimit={DAILY_LIMIT}
+      emailsThisMonth={emailsThisMonth}
+      monthlyLimit={monthlyLimit}
+      plan={plan}
     >
       <div className="p-6">{children}</div>
     </DashboardSidebar>

@@ -24,9 +24,9 @@ import { qstash } from '@/lib/qstash';
 import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { logBatchProgress, logError } from '@/lib/sentry';
+import { checkEmailLimit } from '@/lib/plan-limits';
 
 const BATCH_LIMIT = 500;
-const DAILY_LIMIT = 100;
 
 interface Recipient {
   to: string;
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   if (!user) {
     return new ApiError(
       401,
-      'Please log in to send campaigns'
+      'Please log in to send campaigns',
     ).send();
   }
 
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
   ) {
     return new ApiError(
       400,
-      'Missing templateId or recipients'
+      'Missing templateId or recipients',
     ).send();
   }
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   const template = await db.query.templates.findFirst({
     where: and(
       eq(templates.id, templateId),
-      eq(templates.userId, user.id)
+      eq(templates.userId, user.id),
     ),
   });
 
@@ -82,36 +82,30 @@ export async function POST(req: Request) {
   if (recipients.length === 0) {
     return new ApiError(
       400,
-      'Recipients array is empty'
+      'Recipients array is empty',
     ).send();
   }
   if (recipients.length > BATCH_LIMIT) {
     return new ApiError(
       400,
-      `Maximum ${BATCH_LIMIT} recipients per campaign`
+      `Maximum ${BATCH_LIMIT} recipients per campaign`,
     ).send();
   }
 
-  // Rate limit check
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [emailCount] = await db
-    .select({ count: count() })
-    .from(emails)
-    .where(
-      and(
-        eq(emails.userId, user.id),
-        gte(emails.createdAt, today)
-      )
-    );
+  // Rate limit check using plan-aware monthly limits
+  const limitCheck = await checkEmailLimit(user.id);
 
-  const sentToday = emailCount?.count || 0;
-  if (sentToday + recipients.length > DAILY_LIMIT) {
+  if (!limitCheck.allowed) {
     return new ApiError(
       429,
-      `Daily limit exceeded. ${
-        DAILY_LIMIT - sentToday
-      } remaining.`
+      limitCheck.error || 'Monthly email limit reached',
+    ).send();
+  }
+
+  if (recipients.length > limitCheck.remaining) {
+    return new ApiError(
+      429,
+      `Campaign would exceed monthly limit. ${limitCheck.remaining} emails remaining.`,
     ).send();
   }
 
@@ -141,11 +135,11 @@ export async function POST(req: Request) {
     for (const [key, value] of Object.entries(vars)) {
       subject = subject.replace(
         new RegExp(`{{${key}}}`, 'g'),
-        value
+        value,
       );
       html = html.replace(
         new RegExp(`{{${key}}}`, 'g'),
-        value
+        value,
       );
     }
 
@@ -164,20 +158,20 @@ export async function POST(req: Request) {
     .where(
       inArray(
         suppressionList.email,
-        validRecipients.map((r) => r.to)
-      )
+        validRecipients.map((r) => r.to),
+      ),
     );
   const suppressedSet = new Set(
-    suppressedEmails.map((s) => s.email.toLowerCase())
+    suppressedEmails.map((s) => s.email.toLowerCase()),
   );
   const finalRecipients = validRecipients.filter(
-    (r) => !suppressedSet.has(r.to)
+    (r) => !suppressedSet.has(r.to),
   );
 
   if (finalRecipients.length === 0) {
     return new ApiError(
       400,
-      'No valid recipients after filtering'
+      'No valid recipients after filtering',
     ).send();
   }
 
@@ -211,11 +205,18 @@ export async function POST(req: Request) {
     const uniqueLinks = extractLinks(firstHtml);
     if (uniqueLinks.length > 0) {
       const shrnkLinks = await createBulkLinks(
-        prepareLinksForShrnk(uniqueLinks, batch.id, user.id)
+        prepareLinksForShrnk(
+          uniqueLinks,
+          batch.id,
+          user.id,
+        ),
       );
       if (shrnkLinks.length > 0) {
         linkMap = new Map(
-          shrnkLinks.map((l) => [l.originalUrl, l.shortUrl])
+          shrnkLinks.map((l) => [
+            l.originalUrl,
+            l.shortUrl,
+          ]),
         );
       }
     }
@@ -250,7 +251,7 @@ export async function POST(req: Request) {
           html: r.html,
           variables: JSON.stringify(r.variables || {}),
           status: 'pending' as const,
-        }))
+        })),
       )
       .returning({ id: emails.id });
 
@@ -267,7 +268,7 @@ export async function POST(req: Request) {
           const chunkIds = emailIds.slice(i, i + chunkSize);
           const chunkRecipients = processedRecipients.slice(
             i,
-            i + chunkSize
+            i + chunkSize,
           );
           await Promise.all(
             chunkIds.map((record, idx) =>
@@ -282,17 +283,17 @@ export async function POST(req: Request) {
                   from: fromAddress,
                 },
                 retries: 3,
-              })
-            )
+              }),
+            ),
           );
         }
         console.log(
-          `✅ Campaign ${batch.id}: All ${emailIds.length} emails queued to QStash`
+          `✅ Campaign ${batch.id}: All ${emailIds.length} emails queued to QStash`,
         );
       } catch (error) {
         console.error(
           `❌ Campaign ${batch.id}: QStash queuing error:`,
-          error
+          error,
         );
       }
     })();
@@ -305,7 +306,7 @@ export async function POST(req: Request) {
         suppressed: suppressedSet.size,
         duplicates: duplicateCount,
       },
-      `Campaign created. ${finalRecipients.length} emails queued for delivery.`
+      `Campaign created. ${finalRecipients.length} emails queued for delivery.`,
     ).send();
   }
 
@@ -322,7 +323,7 @@ export async function POST(req: Request) {
         html: r.html,
         variables: JSON.stringify(r.variables || {}),
         status: 'pending' as const,
-      }))
+      })),
     )
     .returning({
       id: emails.id,
@@ -332,7 +333,7 @@ export async function POST(req: Request) {
     });
 
   console.log(
-    `📧 [DEV MODE] Campaign ${batch.id}: Sending ${emailRecords.length} emails via SES...`
+    `📧 [DEV MODE] Campaign ${batch.id}: Sending ${emailRecords.length} emails via SES...`,
   );
 
   let successCount = 0;
@@ -346,14 +347,14 @@ export async function POST(req: Request) {
         processedHtml = injectOpenTracking(
           processedHtml,
           record.id,
-          baseUrl
+          baseUrl,
         );
         processedHtml = injectUnsubscribeLink(
           processedHtml,
           record.id,
           record.to,
           user.id,
-          baseUrl
+          baseUrl,
         );
       }
 
@@ -389,7 +390,7 @@ export async function POST(req: Request) {
       failCount++;
       console.error(
         `  ✗ Failed to send to ${record.to}:`,
-        error.message
+        error.message,
       );
 
       await db
@@ -404,7 +405,7 @@ export async function POST(req: Request) {
   }
 
   console.log(
-    `📧 [DEV MODE] Campaign ${batch.id}: ${successCount} sent, ${failCount} failed`
+    `📧 [DEV MODE] Campaign ${batch.id}: ${successCount} sent, ${failCount} failed`,
   );
 
   // Update batch status
@@ -417,8 +418,8 @@ export async function POST(req: Request) {
         failCount === 0
           ? 'completed'
           : failCount === emailRecords.length
-          ? 'failed'
-          : 'partial',
+            ? 'failed'
+            : 'partial',
     })
     .where(eq(batches.id, batch.id));
 
@@ -430,7 +431,7 @@ export async function POST(req: Request) {
       suppressed: suppressedSet.size,
       duplicates: duplicateCount,
     },
-    `Campaign created. ${successCount} emails sent.`
+    `Campaign created. ${successCount} emails sent.`,
   ).send();
 }
 

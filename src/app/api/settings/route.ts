@@ -10,6 +10,11 @@ import {
 import { eq, count, and, gte } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
+import {
+  getUserPlan,
+  getMonthlyEmailCount,
+  PLAN_LIMITS,
+} from '@/lib/plan-limits';
 
 export async function GET() {
   const supabase = await createClient();
@@ -20,13 +25,16 @@ export async function GET() {
   if (!user) {
     return new ApiError(
       401,
-      'Please log in to view settings'
+      'Please log in to view settings',
     ).send();
   }
 
-  // Get today's date for daily usage
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Get plan-aware usage data
+  const plan = await getUserPlan(user.id);
+  const emailsThisMonth = await getMonthlyEmailCount(
+    user.id,
+  );
+  const monthlyLimit = PLAN_LIMITS[plan].emailsPerMonth;
 
   // Fetch all usage stats in parallel
   const [
@@ -35,7 +43,6 @@ export async function GET() {
     templatesResult,
     webhooksResult,
     batchesResult,
-    emailsTodayResult,
   ] = await Promise.all([
     db
       .select({ count: count() })
@@ -57,15 +64,6 @@ export async function GET() {
       .select({ count: count() })
       .from(batches)
       .where(eq(batches.userId, user.id)),
-    db
-      .select({ count: count() })
-      .from(emails)
-      .where(
-        and(
-          eq(emails.userId, user.id),
-          gte(emails.createdAt, today)
-        )
-      ),
   ]);
 
   const settingsData = {
@@ -82,14 +80,19 @@ export async function GET() {
       templates: templatesResult[0]?.count || 0,
       webhooks: webhooksResult[0]?.count || 0,
       batches: batchesResult[0]?.count || 0,
-      emailsToday: emailsTodayResult[0]?.count || 0,
-      dailyLimit: 100,
+      emailsThisMonth,
+      monthlyLimit,
+    },
+    plan: {
+      name: plan,
+      displayName: plan === 'pro' ? 'FWD Pro' : 'Free Tier',
+      limits: PLAN_LIMITS[plan],
     },
   };
 
   return new ApiResponse(
     200,
     settingsData,
-    'Settings loaded'
+    'Settings loaded',
   ).send();
 }

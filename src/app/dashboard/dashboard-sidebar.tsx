@@ -31,14 +31,16 @@ import { motion } from 'motion/react';
 
 interface DashboardSidebarProps {
   children: React.ReactNode;
-  emailsToday?: number;
-  dailyLimit?: number;
+  emailsThisMonth?: number;
+  monthlyLimit?: number;
+  plan?: 'free' | 'pro';
 }
 
 export default function DashboardSidebar({
   children,
-  emailsToday = 0,
-  dailyLimit = 100,
+  emailsThisMonth = 0,
+  monthlyLimit = 100,
+  plan = 'free',
 }: DashboardSidebarProps) {
   const [open, setOpen] = useState(true);
   const router = useRouter();
@@ -209,7 +211,7 @@ export default function DashboardSidebar({
                 }`}
               />
 
-              {/* Daily Usage */}
+              {/* Monthly Usage */}
               <motion.div
                 animate={{
                   display: open ? 'block' : 'none',
@@ -217,12 +219,19 @@ export default function DashboardSidebar({
                 }}
                 className="px-1 w-full"
               >
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  Daily Usage
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                    Monthly Usage
+                  </span>
+                  {plan === 'pro' && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium">
+                      PRO
+                    </span>
+                  )}
+                </div>
                 {(() => {
                   const usagePercent =
-                    (emailsToday / dailyLimit) * 100;
+                    (emailsThisMonth / monthlyLimit) * 100;
                   const getBarColor = () => {
                     if (usagePercent >= 100)
                       return 'bg-red-500';
@@ -241,6 +250,11 @@ export default function DashboardSidebar({
                       return 'text-yellow-500';
                     return 'text-green-500';
                   };
+                  // Format large numbers (e.g., 5000 -> 5k)
+                  const formatLimit = (n: number) =>
+                    n >= 1000
+                      ? `${(n / 1000).toFixed(0)}k`
+                      : n;
                   return (
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex-1 h-1.5 bg-muted/30 rounded-full overflow-hidden">
@@ -257,7 +271,8 @@ export default function DashboardSidebar({
                       <span
                         className={`text-xs font-mono font-medium ${getTextColor()}`}
                       >
-                        {emailsToday}/{dailyLimit}
+                        {emailsThisMonth}/
+                        {formatLimit(monthlyLimit)}
                       </span>
                     </div>
                   );
