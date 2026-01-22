@@ -5,13 +5,21 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { logError, logEvent } from '@/lib/sentry';
 
-// Validate required environment variables
-const DODO_API_KEY = process.env.DODO_API_KEY;
-const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET;
+// Mode-aware environment variables
+const isLiveMode = process.env.DODO_LIVE_MODE === 'true';
+
+const DODO_API_KEY = isLiveMode
+  ? process.env.DODO_API_KEY_LIVE
+  : process.env.DODO_API_KEY_TEST;
+
+const DODO_WEBHOOK_SECRET = isLiveMode
+  ? process.env.DODO_WEBHOOK_SECRET_LIVE
+  : process.env.DODO_WEBHOOK_SECRET_TEST;
 
 if (!DODO_API_KEY || !DODO_WEBHOOK_SECRET) {
+  const mode = isLiveMode ? 'LIVE' : 'TEST';
   throw new Error(
-    'Missing required DodoPayments environment variables: DODO_API_KEY and/or DODO_WEBHOOK_SECRET',
+    `Missing required DodoPayments env vars: DODO_API_KEY_${mode} and/or DODO_WEBHOOK_SECRET_${mode}`,
   );
 }
 
