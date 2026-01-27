@@ -16,24 +16,38 @@ import {
   Settings,
   Globe,
   CreditCard,
+  ChevronDown,
+  Moon,
+  Sun,
+  User,
 } from 'lucide-react';
 import {
   Sidebar,
   SidebarBody,
   SidebarLink,
 } from '@/components/ui/sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { CommandPaletteProvider } from '@/components/command-palette';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import { useTheme } from 'next-themes';
 
 interface DashboardSidebarProps {
   children: React.ReactNode;
   emailsThisMonth?: number;
   monthlyLimit?: number;
   plan?: 'free' | 'pro';
+  userName?: string;
+  userEmail: string;
 }
 
 export default function DashboardSidebar({
@@ -41,9 +55,25 @@ export default function DashboardSidebar({
   emailsThisMonth = 0,
   monthlyLimit = 100,
   plan = 'free',
+  userName,
+  userEmail,
 }: DashboardSidebarProps) {
   const [open, setOpen] = useState(true);
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (userName) {
+      return userName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return userEmail.charAt(0).toUpperCase();
+  };
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -286,43 +316,85 @@ export default function DashboardSidebar({
                 }`}
               />
 
-              <div className="flex items-center gap-2 py-2">
-                <ThemeToggle />
-                <motion.span
-                  initial={false}
-                  animate={{
-                    opacity: open ? 1 : 0,
-                    width: open ? 'auto' : 0,
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                  className="text-sm text-muted-foreground whitespace-pre overflow-hidden"
+              {/* User Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`flex items-center gap-2 py-2 px-2 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-primary/20 ${
+                      open ? 'w-full' : 'justify-center'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-medium text-primary">
+                        {getInitials()}
+                      </span>
+                    </div>
+                    <motion.div
+                      initial={false}
+                      animate={{
+                        opacity: open ? 1 : 0,
+                        width: open ? 'auto' : 0,
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.4, 0, 0.2, 1],
+                      }}
+                      className="flex items-center gap-2 overflow-hidden"
+                    >
+                      <span className="text-sm font-medium text-foreground truncate max-w-[120px]">
+                        {userName ||
+                          userEmail.split('@')[0]}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </motion.div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56"
+                  sideOffset={8}
                 >
-                  Theme
-                </motion.span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 py-2 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors w-full cursor-pointer"
-              >
-                <LogOut className="h-5 w-5 shrink-0" />
-                <motion.span
-                  initial={false}
-                  animate={{
-                    opacity: open ? 1 : 0,
-                    width: open ? 'auto' : 0,
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                  className="text-sm whitespace-pre overflow-hidden"
-                >
-                  Logout
-                </motion.span>
-              </button>
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-medium">
+                      {userName || 'User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {userEmail}
+                    </p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setTheme(
+                        theme === 'dark' ? 'light' : 'dark',
+                      );
+                    }}
+                  >
+                    {theme === 'dark' ? (
+                      <Sun className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Moon className="mr-2 h-4 w-4" />
+                    )}
+                    <span>
+                      {theme === 'dark'
+                        ? 'Light mode'
+                        : 'Dark mode'}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </SidebarBody>
         </Sidebar>

@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { emails, users } from '@/db/schema';
-import { eq, and, gte, count } from 'drizzle-orm';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import DashboardSidebar from './dashboard-sidebar';
 import {
   getUserPlan,
@@ -24,9 +24,12 @@ export default async function DashboardLayout({
     redirect('/auth/login');
   }
 
-  // Check if user is soft-deleted
+  // Get user record from database
   const userRecord = await db
-    .select({ isDeleted: users.isDeleted })
+    .select({
+      isDeleted: users.isDeleted,
+      name: users.name,
+    })
     .from(users)
     .where(eq(users.id, user.id))
     .limit(1);
@@ -54,6 +57,8 @@ export default async function DashboardLayout({
       emailsThisMonth={emailsThisMonth}
       monthlyLimit={monthlyLimit}
       plan={plan}
+      userName={userRecord[0].name || undefined}
+      userEmail={user.email || ''}
     >
       <div className="p-6">{children}</div>
     </DashboardSidebar>
