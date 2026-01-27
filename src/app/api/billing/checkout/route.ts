@@ -143,7 +143,6 @@ export async function POST(request: NextRequest) {
     console.log('[Checkout] Session details:', {
       session_id: session.session_id,
       checkout_url: session.checkout_url,
-      expires_at: session.expires_at,
     });
 
     // Step 6: Return success response
