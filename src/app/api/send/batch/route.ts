@@ -10,14 +10,7 @@ import {
   templates,
   batches,
 } from '@/db/schema';
-import {
-  eq,
-  and,
-  isNull,
-  gte,
-  count,
-  inArray,
-} from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { hashApiKey } from '@/lib/api-keys';
 import { substituteVariables } from '@/lib/templates';
 import {
@@ -30,9 +23,9 @@ import {
   createBulkLinks,
   prepareLinksForShrnk,
 } from '@/lib/shrnk';
+import { checkEmailLimit } from '@/lib/plan-limits';
 
 const BATCH_LIMIT = 500; // Premium feature: max 500 emails per batch
-const DAILY_LIMIT = 100; // Shared with single sends
 
 interface Recipient {
   to: string;
@@ -62,7 +55,7 @@ export async function POST(req: Request) {
           error:
             'Missing API key. Include x-api-key header.',
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -70,14 +63,14 @@ export async function POST(req: Request) {
     const keyRecord = await db.query.apiKeys.findFirst({
       where: and(
         eq(apiKeys.keyHash, keyHash),
-        isNull(apiKeys.revokedAt)
+        isNull(apiKeys.revokedAt),
       ),
     });
 
     if (!keyRecord) {
       return NextResponse.json(
         { error: 'Invalid or revoked API key' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -94,13 +87,13 @@ export async function POST(req: Request) {
       return await handleTemplateBatch(
         keyRecord.userId,
         templateId,
-        recipients
+        recipients,
       );
     } else if (directEmails && !templateId && !recipients) {
       // Direct mode
       return await handleDirectBatch(
         keyRecord.userId,
-        directEmails
+        directEmails,
       );
     } else {
       return NextResponse.json(
@@ -108,14 +101,14 @@ export async function POST(req: Request) {
           error:
             'Invalid request. Provide either (templateId + recipients) OR (emails), not both.',
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error: any) {
     console.error('Batch send error:', error);
     return NextResponse.json(
       { error: 'Failed to process batch' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -123,20 +116,20 @@ export async function POST(req: Request) {
 async function handleTemplateBatch(
   userId: string,
   templateId: string,
-  recipients: Recipient[]
+  recipients: Recipient[],
 ) {
   // Load template
   const template = await db.query.templates.findFirst({
     where: and(
       eq(templates.id, templateId),
-      eq(templates.userId, userId)
+      eq(templates.userId, userId),
     ),
   });
 
   if (!template) {
     return NextResponse.json(
       { error: 'Template not found or not owned by you' },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -144,7 +137,7 @@ async function handleTemplateBatch(
   if (!recipients || recipients.length === 0) {
     return NextResponse.json(
       { error: 'Recipients array is empty' },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (recipients.length > BATCH_LIMIT) {
@@ -152,7 +145,7 @@ async function handleTemplateBatch(
       {
         error: `Batch size exceeds limit. Maximum ${BATCH_LIMIT} emails per batch.`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -199,7 +192,7 @@ async function handleTemplateBatch(
     const vars = recipient.variables || {};
     const subject = substituteVariables(
       template.subject,
-      vars
+      vars,
     );
     const html = substituteVariables(template.html, vars);
 
@@ -211,25 +204,35 @@ async function handleTemplateBatch(
     });
   }
 
-  // Run rate limit and suppression checks in PARALLEL (reduces DB roundtrips)
-  const [rateLimitResult, suppressionResult] =
+  // Run email limit and suppression checks in PARALLEL (reduces DB roundtrips)
+  const [emailLimitResult, suppressionResult] =
     await Promise.all([
-      checkRateLimit(userId, recipients.length),
+      checkEmailLimit(userId),
       filterSuppressed(validRecipients.map((r) => r.to)),
     ]);
 
-  if (rateLimitResult.error) {
+  if (!emailLimitResult.allowed) {
     return NextResponse.json(
-      { error: rateLimitResult.error },
-      { status: 429 }
+      { error: emailLimitResult.error },
+      { status: 429 },
     );
   }
 
   const { filtered, suppressedCount } = suppressionResult;
   const filteredSet = new Set(filtered);
   const finalRecipients = validRecipients.filter((r) =>
-    filteredSet.has(r.to)
+    filteredSet.has(r.to),
   );
+
+  // Check if batch would exceed remaining quota
+  if (finalRecipients.length > emailLimitResult.remaining) {
+    return NextResponse.json(
+      {
+        error: `Batch would exceed monthly limit. ${emailLimitResult.remaining} emails remaining.`,
+      },
+      { status: 429 },
+    );
+  }
 
   if (finalRecipients.length === 0) {
     return NextResponse.json(
@@ -242,7 +245,7 @@ async function handleTemplateBatch(
           duplicates: duplicateCount,
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -256,7 +259,7 @@ async function handleTemplateBatch(
       valid: finalRecipients.length,
       suppressed: suppressedCount,
       duplicates: duplicateCount,
-    }
+    },
   );
 
   return NextResponse.json({
@@ -270,21 +273,21 @@ async function handleTemplateBatch(
     duplicates: duplicateCount,
     errors: errors.length > 0 ? errors : undefined,
     rateLimit: {
-      limit: DAILY_LIMIT,
-      remaining: rateLimitResult.remaining - result.queued,
+      limit: emailLimitResult.limit,
+      remaining: emailLimitResult.remaining - result.queued,
     },
   });
 }
 
 async function handleDirectBatch(
   userId: string,
-  directEmails: DirectEmail[]
+  directEmails: DirectEmail[],
 ) {
   // Validate batch size
   if (!directEmails || directEmails.length === 0) {
     return NextResponse.json(
       { error: 'Emails array is empty' },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (directEmails.length > BATCH_LIMIT) {
@@ -292,7 +295,7 @@ async function handleDirectBatch(
       {
         error: `Batch size exceeds limit. Maximum ${BATCH_LIMIT} emails per batch.`,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -360,25 +363,35 @@ async function handleDirectBatch(
     });
   }
 
-  // Run rate limit and suppression checks in PARALLEL (reduces DB roundtrips)
-  const [rateLimitResult, suppressionResult] =
+  // Run email limit and suppression checks in PARALLEL (reduces DB roundtrips)
+  const [emailLimitResult, suppressionResult] =
     await Promise.all([
-      checkRateLimit(userId, directEmails.length),
+      checkEmailLimit(userId),
       filterSuppressed(validEmails.map((e) => e.to)),
     ]);
 
-  if (rateLimitResult.error) {
+  if (!emailLimitResult.allowed) {
     return NextResponse.json(
-      { error: rateLimitResult.error },
-      { status: 429 }
+      { error: emailLimitResult.error },
+      { status: 429 },
     );
   }
 
   const { filtered, suppressedCount } = suppressionResult;
   const filteredSet = new Set(filtered);
   const finalEmails = validEmails.filter((e) =>
-    filteredSet.has(e.to)
+    filteredSet.has(e.to),
   );
+
+  // Check if batch would exceed remaining quota
+  if (finalEmails.length > emailLimitResult.remaining) {
+    return NextResponse.json(
+      {
+        error: `Batch would exceed monthly limit. ${emailLimitResult.remaining} emails remaining.`,
+      },
+      { status: 429 },
+    );
+  }
 
   if (finalEmails.length === 0) {
     return NextResponse.json(
@@ -391,7 +404,7 @@ async function handleDirectBatch(
           duplicates: duplicateCount,
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -405,7 +418,7 @@ async function handleDirectBatch(
       valid: finalEmails.length,
       suppressed: suppressedCount,
       duplicates: duplicateCount,
-    }
+    },
   );
 
   return NextResponse.json({
@@ -419,47 +432,10 @@ async function handleDirectBatch(
     duplicates: duplicateCount,
     errors: errors.length > 0 ? errors : undefined,
     rateLimit: {
-      limit: DAILY_LIMIT,
-      remaining: rateLimitResult.remaining - result.queued,
+      limit: emailLimitResult.limit,
+      remaining: emailLimitResult.remaining - result.queued,
     },
   });
-}
-
-async function checkRateLimit(
-  userId: string,
-  requestedCount: number
-) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const [emailCount] = await db
-    .select({ count: count() })
-    .from(emails)
-    .where(
-      and(
-        eq(emails.userId, userId),
-        gte(emails.createdAt, today)
-      )
-    );
-
-  const sentToday = emailCount?.count || 0;
-  const remaining = DAILY_LIMIT - sentToday;
-
-  if (sentToday >= DAILY_LIMIT) {
-    return {
-      error: 'Daily limit reached. Resets at midnight UTC.',
-      remaining: 0,
-    };
-  }
-
-  if (sentToday + requestedCount > DAILY_LIMIT) {
-    return {
-      error: `Batch would exceed daily limit. ${remaining} emails remaining today.`,
-      remaining,
-    };
-  }
-
-  return { remaining };
 }
 
 async function filterSuppressed(emailAddresses: string[]) {
@@ -473,10 +449,10 @@ async function filterSuppressed(emailAddresses: string[]) {
     .where(inArray(suppressionList.email, emailAddresses));
 
   const suppressedSet = new Set(
-    suppressed.map((s) => s.email.toLowerCase())
+    suppressed.map((s) => s.email.toLowerCase()),
   );
   const filtered = emailAddresses.filter(
-    (e) => !suppressedSet.has(e.toLowerCase())
+    (e) => !suppressedSet.has(e.toLowerCase()),
   );
 
   return {
@@ -499,7 +475,7 @@ async function createBatchAndEmails(
     valid: number;
     suppressed: number;
     duplicates: number;
-  }
+  },
 ) {
   // Create batch record first to get batchId for link tracking
   const [batch] = await db
@@ -526,20 +502,23 @@ async function createBatchAndEmails(
 
     if (uniqueLinks.length > 0) {
       console.log(
-        `🔗 Batch ${batch.id}: Found ${uniqueLinks.length} unique links to track`
+        `🔗 Batch ${batch.id}: Found ${uniqueLinks.length} unique links to track`,
       );
 
       // Create short URLs via Shrnk
       const shrnkLinks = await createBulkLinks(
-        prepareLinksForShrnk(uniqueLinks, batch.id, userId)
+        prepareLinksForShrnk(uniqueLinks, batch.id, userId),
       );
 
       if (shrnkLinks.length > 0) {
         linkMap = new Map(
-          shrnkLinks.map((l) => [l.originalUrl, l.shortUrl])
+          shrnkLinks.map((l) => [
+            l.originalUrl,
+            l.shortUrl,
+          ]),
         );
         console.log(
-          `🔗 Batch ${batch.id}: Created ${shrnkLinks.length} tracked links via Shrnk`
+          `🔗 Batch ${batch.id}: Created ${shrnkLinks.length} tracked links via Shrnk`,
         );
       }
     }
@@ -574,7 +553,7 @@ async function createBatchAndEmails(
           html: r.html,
           text: r.text,
           status: 'pending' as const,
-        }))
+        })),
       )
       .returning({ id: emails.id });
 
@@ -595,14 +574,14 @@ async function createBatchAndEmails(
       try {
         const totalEmails = emailIdsForQueue.length;
         const estimatedDuration = Math.ceil(
-          totalEmails / SES_RATE_LIMIT
+          totalEmails / SES_RATE_LIMIT,
         );
         const totalChunks = Math.ceil(
-          totalEmails / BATCH_CHUNK_SIZE
+          totalEmails / BATCH_CHUNK_SIZE,
         );
 
         console.log(
-          `📤 Batch ${batchIdForQueue}: Queuing ${totalEmails} emails in ${totalChunks} batch chunks (14/sec, ~${estimatedDuration}s to deliver all)`
+          `📤 Batch ${batchIdForQueue}: Queuing ${totalEmails} emails in ${totalChunks} batch chunks (14/sec, ~${estimatedDuration}s to deliver all)`,
         );
 
         // Queue emails using batchJSON - much fewer HTTP calls
@@ -613,11 +592,11 @@ async function createBatchAndEmails(
         ) {
           const chunkIds = emailIdsForQueue.slice(
             i,
-            i + BATCH_CHUNK_SIZE
+            i + BATCH_CHUNK_SIZE,
           );
           const chunkRecipients = recipientsForQueue.slice(
             i,
-            i + BATCH_CHUNK_SIZE
+            i + BATCH_CHUNK_SIZE,
           );
           const chunkNumber =
             Math.floor(i / BATCH_CHUNK_SIZE) + 1;
@@ -627,7 +606,7 @@ async function createBatchAndEmails(
             (record, idx) => {
               const globalIndex = i + idx;
               const delaySeconds = Math.floor(
-                globalIndex / SES_RATE_LIMIT
+                globalIndex / SES_RATE_LIMIT,
               );
 
               return {
@@ -643,20 +622,20 @@ async function createBatchAndEmails(
                 retries: 3,
                 delay: delaySeconds,
               };
-            }
+            },
           );
 
           try {
             // Single HTTP call for up to 50 messages
             await qstash.batchJSON(batchMessages);
             console.log(
-              `  📦 Chunk ${chunkNumber}/${totalChunks}: ${chunkIds.length} emails queued`
+              `  📦 Chunk ${chunkNumber}/${totalChunks}: ${chunkIds.length} emails queued`,
             );
           } catch (batchError) {
             // Fallback: If batch fails, try individual publishing
             console.warn(
               `  ⚠️ Chunk ${chunkNumber} batch failed, falling back to individual publish:`,
-              batchError
+              batchError,
             );
             await Promise.all(
               batchMessages.map((msg) =>
@@ -665,19 +644,19 @@ async function createBatchAndEmails(
                   body: msg.body,
                   retries: msg.retries,
                   delay: msg.delay,
-                })
-              )
+                }),
+              ),
             );
           }
         }
 
         console.log(
-          `✅ Batch ${batchIdForQueue}: All ${totalEmails} emails queued to QStash (spread over ~${estimatedDuration}s)`
+          `✅ Batch ${batchIdForQueue}: All ${totalEmails} emails queued to QStash (spread over ~${estimatedDuration}s)`,
         );
       } catch (error) {
         console.error(
           `❌ Batch ${batchIdForQueue}: QStash queuing error:`,
-          error
+          error,
         );
       }
     })();
@@ -704,7 +683,7 @@ async function createBatchAndEmails(
         html: r.html,
         text: r.text,
         status: 'pending' as const,
-      }))
+      })),
     )
     .returning({
       id: emails.id,
@@ -716,7 +695,7 @@ async function createBatchAndEmails(
 
   // DEV MODE: Send directly via SES
   console.log(
-    `📧 [DEV MODE] Batch ${batch.id}: Sending ${emailRecords.length} emails via SES...`
+    `📧 [DEV MODE] Batch ${batch.id}: Sending ${emailRecords.length} emails via SES...`,
   );
 
   let successCount = 0;
@@ -730,14 +709,14 @@ async function createBatchAndEmails(
         processedHtml = injectOpenTracking(
           processedHtml,
           record.id,
-          baseUrl
+          baseUrl,
         );
         processedHtml = injectUnsubscribeLink(
           processedHtml,
           record.id,
           record.to,
           userId,
-          baseUrl
+          baseUrl,
         );
       }
 
@@ -778,7 +757,7 @@ async function createBatchAndEmails(
       failCount++;
       console.error(
         `  ✗ Failed to send to ${record.to}:`,
-        error.message
+        error.message,
       );
 
       // Update email status to failed
@@ -794,7 +773,7 @@ async function createBatchAndEmails(
   }
 
   console.log(
-    `📧 [DEV MODE] Batch ${batch.id}: ${successCount} sent, ${failCount} failed`
+    `📧 [DEV MODE] Batch ${batch.id}: ${successCount} sent, ${failCount} failed`,
   );
 
   // Update batch completed/failed counts
@@ -807,8 +786,8 @@ async function createBatchAndEmails(
         failCount === 0
           ? 'completed'
           : failCount === emailRecords.length
-          ? 'failed'
-          : 'partial',
+            ? 'failed'
+            : 'partial',
     })
     .where(eq(batches.id, batch.id));
 
