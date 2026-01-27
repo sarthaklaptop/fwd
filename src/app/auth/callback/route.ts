@@ -14,7 +14,13 @@ export async function GET(request: Request) {
     const { error } =
       await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
+    if (error) {
+      console.error(
+        'Error exchanging code for session:',
+        error.message,
+      );
+      // Fall through to error redirect
+    } else {
       // Get the authenticated user
       const {
         data: { user },
@@ -34,6 +40,10 @@ export async function GET(request: Request) {
                 null,
             })
             .onConflictDoNothing();
+          console.log(
+            'User record created/verified for:',
+            user.email,
+          );
         } catch (err) {
           console.error(
             'Error creating user record in callback:',

@@ -171,20 +171,8 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      try {
-        await fetch('/api/auth/create-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: data.user.id,
-            email: data.user.email,
-            name,
-          }),
-        });
-      } catch (err) {
-        console.error('Error creating user record:', err);
-      }
-
+      // Note: User record is created in /auth/callback after email verification
+      // We don't create it here because the user isn't authenticated yet
       toast.success('Account created!');
 
       // Check if email confirmation is required
