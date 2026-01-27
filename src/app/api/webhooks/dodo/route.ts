@@ -29,6 +29,13 @@ const client = new DodoPayments({
   webhookKey: DODO_WEBHOOK_SECRET,
 });
 
+// Startup log to confirm webhook configuration
+console.log('[DodoWebhook] Initialized:', {
+  mode: isLiveMode ? 'LIVE' : 'TEST',
+  webhookSecretPrefix:
+    DODO_WEBHOOK_SECRET.substring(0, 10) + '...',
+});
+
 // Subscription webhook event types
 type SubscriptionEventType =
   | 'subscription.active'

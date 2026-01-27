@@ -14,37 +14,44 @@ import DodoPayments from 'dodopayments';
  * - DODO_PRODUCT_ID_TEST / DODO_PRODUCT_ID_LIVE
  */
 
-const isLiveMode = process.env.DODO_LIVE_MODE === 'true';
+export const DODO_IS_LIVE_MODE =
+  process.env.DODO_LIVE_MODE === 'true';
 
 // Select API key based on mode
-const apiKey = isLiveMode
+const apiKey = DODO_IS_LIVE_MODE
   ? process.env.DODO_API_KEY_LIVE
   : process.env.DODO_API_KEY_TEST;
 
 if (!apiKey) {
   throw new Error(
-    `Missing required env var: DODO_API_KEY_${isLiveMode ? 'LIVE' : 'TEST'}`,
+    `Missing required env var: DODO_API_KEY_${DODO_IS_LIVE_MODE ? 'LIVE' : 'TEST'}`,
   );
 }
 
 // DodoPayments client instance
 export const dodo = new DodoPayments({
   bearerToken: apiKey,
-  environment: isLiveMode ? 'live_mode' : 'test_mode',
+  environment: DODO_IS_LIVE_MODE
+    ? 'live_mode'
+    : 'test_mode',
 });
 
 // Product ID for FWD Pro subscription
-const productId = isLiveMode
+const productId = DODO_IS_LIVE_MODE
   ? process.env.DODO_PRODUCT_ID_LIVE
   : process.env.DODO_PRODUCT_ID_TEST;
 
 if (!productId) {
   throw new Error(
-    `Missing required env var: DODO_PRODUCT_ID_${isLiveMode ? 'LIVE' : 'TEST'}`,
+    `Missing required env var: DODO_PRODUCT_ID_${DODO_IS_LIVE_MODE ? 'LIVE' : 'TEST'}`,
   );
 }
 
 export const FWD_PRO_PRODUCT_ID = productId;
 
-// Export mode for use in other files (e.g., webhook handler)
-export const DODO_IS_LIVE_MODE = isLiveMode;
+// Startup log to confirm configuration
+console.log('[DodoPayments] Initialized:', {
+  mode: DODO_IS_LIVE_MODE ? 'LIVE' : 'TEST',
+  productId: FWD_PRO_PRODUCT_ID,
+  apiKeyPrefix: apiKey.substring(0, 10) + '...',
+});
