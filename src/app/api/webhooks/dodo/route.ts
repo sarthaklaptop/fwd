@@ -339,20 +339,51 @@ async function handleSubscriptionFailed(
         subject:
           'Action Required: Payment Failed for FWD Pro',
         html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Payment Failed</h2>
-            <p>Hi there,</p>
-            <p>We were unable to process your payment for FWD Pro subscription.</p>
-            <p>Please update your payment method to avoid service interruption:</p>
-            <p>
-              <a href="${baseUrl}/dashboard/billing" 
-                 style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px;">
-                Update Payment Method
-              </a>
-            </p>
-            <p>If you have any questions, reply to this email.</p>
-            <p>— The FWD Team</p>
-          </div>
+          <!DOCTYPE html>
+          <html>
+          <body style="margin: 0; padding: 0; background-color: #1c1917; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="max-width: 560px; margin: 0 auto; padding: 48px 24px;">
+              
+              <!-- Logo -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <div style="font-size: 40px; margin-bottom: 8px;">📬</div>
+                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #c2410c; letter-spacing: 2px;">FWD</h1>
+              </div>
+              
+              <!-- Card -->
+              <div style="background: #292524; border: 1px solid #44403c; border-radius: 16px; padding: 40px 32px; text-align: center;">
+                
+                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                
+                <h2 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 600; color: #fafaf9;">
+                  Payment Failed
+                </h2>
+                
+                <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.7; color: #a8a29e;">
+                  We were unable to process your payment for FWD Pro. Please update your payment method to avoid service interruption.
+                </p>
+                
+                <a href="${baseUrl}/dashboard/billing" 
+                   style="display: inline-block; padding: 14px 36px; background-color: #c2410c; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 12px;">
+                  Update Payment Method
+                </a>
+                
+                <p style="margin: 24px 0 0 0; font-size: 13px; color: #78716c;">
+                  If you have any questions, just reply to this email.
+                </p>
+                
+              </div>
+              
+              <!-- Footer -->
+              <div style="margin-top: 32px; text-align: center;">
+                <p style="margin: 0; font-size: 11px; color: #44403c;">
+                  © 2024 Fwd · Email for Developers
+                </p>
+              </div>
+              
+            </div>
+          </body>
+          </html>
         `,
       }),
     });
