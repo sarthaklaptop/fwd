@@ -28,6 +28,11 @@ function LoginForm() {
       toast.error(
         'Account not found. Please contact support if this is unexpected.',
       );
+    } else if (error === 'Could not authenticate') {
+      toast.error(
+        'Verification failed. Please sign up again and open the verification link in the same browser.',
+        { duration: 6000 },
+      );
     }
   }, [searchParams]);
 

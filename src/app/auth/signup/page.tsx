@@ -210,6 +210,9 @@ export default function SignupPage() {
               {email}
             </span>
           </p>
+          <p className="text-muted-foreground/70 text-sm mt-3">
+            Please open the link in this browser
+          </p>
           <Link
             href="/auth/login"
             className="inline-block mt-6 text-primary hover:text-primary/80 transition-colors font-medium"
