@@ -36,18 +36,19 @@ console.log('[DodoWebhook] Initialized:', {
     DODO_WEBHOOK_SECRET.substring(0, 10) + '...',
 });
 
-// Subscription webhook event types
-type SubscriptionEventType =
+// Webhook event types
+type WebhookEventType =
   | 'subscription.active'
   | 'subscription.renewed'
   | 'subscription.cancelled'
   | 'subscription.on_hold'
   | 'subscription.expired'
-  | 'subscription.failed';
+  | 'subscription.failed'
+  | 'payment.failed';
 
-interface SubscriptionWebhookPayload {
+interface WebhookPayload {
   business_id: string;
-  type: SubscriptionEventType;
+  type: WebhookEventType;
   timestamp: string;
   data: {
     payload_type: 'Subscription';
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify webhook signature using SDK
-    let payload: SubscriptionWebhookPayload;
+    let payload: WebhookPayload;
     try {
       payload = client.webhooks.unwrap(rawBody, {
         headers: {
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
           'webhook-signature': webhookSignature,
           'webhook-timestamp': webhookTimestamp,
         },
-      }) as unknown as SubscriptionWebhookPayload;
+      }) as unknown as WebhookPayload;
     } catch (error) {
       console.error('Invalid webhook signature:', error);
       logError(error, {
@@ -145,7 +146,8 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'subscription.failed':
-        await handleSubscriptionFailed(payload);
+      case 'payment.failed':
+        await handlePaymentFailed(payload);
         break;
 
       default:
@@ -181,7 +183,7 @@ export async function POST(request: NextRequest) {
  * Update user to Pro plan with active status
  */
 async function handleSubscriptionActive(
-  payload: SubscriptionWebhookPayload,
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer, next_billing_date } =
     payload.data;
@@ -212,7 +214,7 @@ async function handleSubscriptionActive(
  * Update the next billing date
  */
 async function handleSubscriptionRenewed(
-  payload: SubscriptionWebhookPayload,
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer, next_billing_date } =
     payload.data;
@@ -240,7 +242,7 @@ async function handleSubscriptionRenewed(
  * Mark as cancelled, keep Pro access until currentPeriodEnd
  */
 async function handleSubscriptionCancelled(
-  payload: SubscriptionWebhookPayload,
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer } = payload.data;
   const userEmail = customer.email;
@@ -264,7 +266,7 @@ async function handleSubscriptionCancelled(
  * Keep Pro access during grace period (handled in feature gating)
  */
 async function handleSubscriptionOnHold(
-  payload: SubscriptionWebhookPayload,
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer } = payload.data;
   const userEmail = customer.email;
@@ -287,7 +289,7 @@ async function handleSubscriptionOnHold(
  * Downgrade to free plan
  */
 async function handleSubscriptionExpired(
-  payload: SubscriptionWebhookPayload,
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer } = payload.data;
   const userEmail = customer.email;
@@ -308,11 +310,11 @@ async function handleSubscriptionExpired(
 }
 
 /**
- * subscription.failed - Payment attempt failed (subscription may still be active with retry)
- * Log for monitoring, actual status change comes via on_hold
+ * subscription.failed / payment.failed - Payment attempt failed
+ * Send notification email to user
  */
-async function handleSubscriptionFailed(
-  payload: SubscriptionWebhookPayload,
+async function handlePaymentFailed(
+  payload: WebhookPayload,
 ) {
   const { subscription_id, customer } = payload.data;
   const userEmail = customer.email;
