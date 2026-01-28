@@ -1,52 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { emails } from '@/db/schema';
-import { eq, isNull, and } from 'drizzle-orm';
+import { emails, batches } from '@/db/schema';
+import { eq, isNull, and, sql } from 'drizzle-orm';
 import { publishEvent } from '@/lib/events';
 
 // 1x1 transparent GIF (43 bytes)
 const TRANSPARENT_GIF = Buffer.from(
-    'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
-    'base64'
+  'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  'base64',
 );
 
 export async function GET(
-    req: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
-    const { id: emailId } = await params;
+  const { id: emailId } = await params;
 
-    try {
-        await db.update(emails)
-            .set({ openedAt: new Date() })
-            .where(
-                and(
-                    eq(emails.id, emailId),
-                    isNull(emails.openedAt)
-                )
-            );
-        console.log(`📬 Email ${emailId} opened`);
+  try {
+    // First, update the email's openedAt (only if not already opened)
+    const result = await db
+      .update(emails)
+      .set({ openedAt: new Date() })
+      .where(
+        and(
+          eq(emails.id, emailId),
+          isNull(emails.openedAt),
+        ),
+      )
+      .returning({ batchId: emails.batchId });
 
-        const email = await db.query.emails.findFirst({
-            where: eq(emails.id, emailId),
-            columns: { userId: true }
-        });
-
-        if (email?.userId) {
-            await publishEvent(email.userId, 'email.opened', { emailId });
-        }
-    } catch (error) {
-        console.error(`Failed to record open for ${emailId}:`, error);
+    // If the email was updated (first open), increment the batch counter
+    if (result.length > 0 && result[0].batchId) {
+      await db
+        .update(batches)
+        .set({ opened: sql`${batches.opened} + 1` })
+        .where(eq(batches.id, result[0].batchId));
     }
 
-    return new NextResponse(TRANSPARENT_GIF, {
-        status: 200,
-        headers: {
-            'Content-Type': 'image/gif',
-            'Content-Length': String(TRANSPARENT_GIF.length),
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-        },
+    console.log(`📬 Email ${emailId} opened`);
+
+    const email = await db.query.emails.findFirst({
+      where: eq(emails.id, emailId),
+      columns: { userId: true },
     });
+
+    if (email?.userId) {
+      await publishEvent(email.userId, 'email.opened', {
+        emailId,
+      });
+    }
+  } catch (error) {
+    console.error(
+      `Failed to record open for ${emailId}:`,
+      error,
+    );
+  }
+
+  return new NextResponse(TRANSPARENT_GIF, {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/gif',
+      'Content-Length': String(TRANSPARENT_GIF.length),
+      'Cache-Control':
+        'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  });
 }
