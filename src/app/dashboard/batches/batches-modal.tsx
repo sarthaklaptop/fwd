@@ -89,7 +89,10 @@ export function BatchDetailModal({
                 />
                 <StatCard
                   label="Clicked"
-                  value={batch.clicked}
+                  value={
+                    batch.linkStats?.totalClicks ??
+                    batch.clicked
+                  }
                   color="orange"
                 />
               </div>
