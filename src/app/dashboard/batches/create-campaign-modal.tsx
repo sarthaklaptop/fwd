@@ -708,9 +708,9 @@ export function CreateCampaignModal({
                   {/* Load previous recipients toggle (only in duplicate mode) */}
                   {duplicateFrom &&
                     prevRecipientCount > 0 && (
-                      <div className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-border">
+                      <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
                         <div className="flex items-center gap-3">
-                          <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                          <RotateCcw className="w-4 h-4 text-primary" />
                           <div>
                             <p className="text-sm text-foreground">
                               Load previous recipients
