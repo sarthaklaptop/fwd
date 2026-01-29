@@ -22,7 +22,7 @@ export function BatchesTable({
             <th className="px-4 py-3">Recipients</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Success Rate</th>
-            <th className="px-4 py-3">Clicked</th>
+            <th className="px-4 py-3">Opened</th>
             <th className="px-4 py-3">Date</th>
           </tr>
         </thead>
@@ -100,8 +100,8 @@ export function BatchesTable({
                     queued={batch.queued}
                   />
                 </td>
-                <td className="px-4 py-3 text-sm text-orange-500 dark:text-orange-400 font-medium">
-                  {batch.clicked || 0}
+                <td className="px-4 py-3 text-sm text-purple-500 dark:text-purple-400 font-medium">
+                  {batch.opened || 0}
                 </td>
                 <td
                   className="px-4 py-3 text-sm text-muted-foreground"
