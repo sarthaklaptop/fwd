@@ -15,36 +15,18 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
+import { useUserEmail } from '@/hooks/use-user-email';
 import { TestEmailModal } from '../templates/templates-test-modal';
-
-interface Template {
-  id: string;
-  name: string;
-  subject: string;
-  html: string;
-}
-
-interface Domain {
-  id: string;
-  domain: string;
-  status: string;
-}
-
-interface Recipient {
-  to: string;
-  variables?: Record<string, string>;
-}
-
-interface CreateCampaignModalProps {
-  isOpen: boolean;
-  duplicateFrom?: {
-    templateId: string;
-    fromEmail: string;
-    batchId: string;
-  } | null;
-  onClose: () => void;
-  onSuccess: () => void;
-}
+import type {
+  Template,
+  Domain,
+  CreateCampaignModalProps,
+} from './types';
+import { extractTemplateVariables } from '@/lib/templates';
+import {
+  parseRecipients,
+  getMissingVariablesCount,
+} from '@/lib/campaign-utils';
 
 export function CreateCampaignModal({
   isOpen,
@@ -82,7 +64,7 @@ export function CreateCampaignModal({
 
   // Test email modal state
   const [testEmailOpen, setTestEmailOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
+  const { userEmail } = useUserEmail();
 
   // Duplicate mode state
   const [loadPrevRecipients, setLoadPrevRecipients] =
@@ -128,31 +110,6 @@ export function CreateCampaignModal({
     isOpen,
     submitDisabled: step !== 3 || sending,
   });
-
-  // Fetch user email for test modal
-  useEffect(() => {
-    async function fetchUserEmail() {
-      const cachedEmail = localStorage.getItem(
-        'fwd_user_email',
-      );
-      if (cachedEmail) {
-        setUserEmail(cachedEmail);
-        return;
-      }
-      try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success && data.data.profile.email) {
-          const email = data.data.profile.email;
-          setUserEmail(email);
-          localStorage.setItem('fwd_user_email', email);
-        }
-      } catch {
-        // Silently fail, user can type email
-      }
-    }
-    if (isOpen) fetchUserEmail();
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -344,19 +301,6 @@ export function CreateCampaignModal({
     }
   }
 
-  // Extract template variables like {{name}}, {{organization}} from HTML
-  function extractTemplateVariables(
-    html: string,
-  ): string[] {
-    const regex = /\{\{(\w+)\}\}/g;
-    const variables = new Set<string>();
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      variables.add(match[1]);
-    }
-    return Array.from(variables);
-  }
-
   // Handle template selection and extract variables from subject + HTML
   function handleTemplateSelect(template: Template) {
     setSelectedTemplate(template);
@@ -371,45 +315,6 @@ export function CreateCampaignModal({
       ...new Set([...subjectVars, ...htmlVars]),
     ];
     setTemplateVariables(allVars);
-  }
-
-  function parseRecipients(): Recipient[] {
-    const lines = recipients
-      .trim()
-      .split('\n')
-      .filter((line) => line.trim());
-    return lines.map((line) => {
-      const parts = line.split(',').map((p) => p.trim());
-      const to = parts[0];
-      const variables: Record<string, string> = {};
-
-      // Map CSV columns to detected template variables
-      templateVariables.forEach((varName, index) => {
-        if (parts[index + 1]) {
-          variables[varName] = parts[index + 1];
-        }
-      });
-
-      return { to, variables };
-    });
-  }
-
-  // Check for recipients with missing variable columns
-  function getMissingVariablesCount(): number {
-    if (templateVariables.length === 0) return 0;
-    const lines = recipients
-      .trim()
-      .split('\n')
-      .filter((line) => line.trim());
-    const expectedColumns = templateVariables.length + 1; // email + variables
-    return lines.filter((line) => {
-      const parts = line.split(',').map((p) => p.trim());
-      return (
-        parts.length > 0 &&
-        parts[0] &&
-        parts.length < expectedColumns
-      );
-    }).length;
   }
 
   async function handleSend() {
@@ -428,7 +333,10 @@ export function CreateCampaignModal({
       return;
     }
 
-    const parsedRecipients = parseRecipients();
+    const parsedRecipients = parseRecipients(
+      recipients,
+      templateVariables,
+    );
     if (parsedRecipients.length === 0) {
       setError('Please add at least one recipient');
       return;
@@ -862,13 +770,25 @@ export function CreateCampaignModal({
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Upload className="w-4 h-4" />
                       <span>
-                        {parseRecipients().length}{' '}
+                        {
+                          parseRecipients(
+                            recipients,
+                            templateVariables,
+                          ).length
+                        }{' '}
                         recipients detected
                       </span>
                     </div>
-                    {getMissingVariablesCount() > 0 && (
+                    {getMissingVariablesCount(
+                      recipients,
+                      templateVariables,
+                    ) > 0 && (
                       <p className="text-xs text-yellow-500">
-                        ⚠️ {getMissingVariablesCount()}{' '}
+                        ⚠️{' '}
+                        {getMissingVariablesCount(
+                          recipients,
+                          templateVariables,
+                        )}{' '}
                         recipient(s) missing variable values
                       </p>
                     )}
@@ -896,7 +816,12 @@ export function CreateCampaignModal({
                           Recipients
                         </p>
                         <p className="font-medium text-foreground">
-                          {parseRecipients().length}
+                          {
+                            parseRecipients(
+                              recipients,
+                              templateVariables,
+                            ).length
+                          }
                         </p>
                       </div>
                     </div>
@@ -983,7 +908,10 @@ export function CreateCampaignModal({
                     }
                     if (
                       step === 2 &&
-                      parseRecipients().length === 0
+                      parseRecipients(
+                        recipients,
+                        templateVariables,
+                      ).length === 0
                     ) {
                       setError(
                         'Please add at least one recipient',

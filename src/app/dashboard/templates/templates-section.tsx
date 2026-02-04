@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ConfirmDialog } from '@/components/ui';
 import { Plus, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUserEmail } from '@/hooks/use-user-email';
 import { TemplateCard, EmptyState } from './templates-card';
 import { TemplateModal } from './templates-modal';
 import { TestEmailModal } from './templates-test-modal';
@@ -16,7 +17,7 @@ export default function TemplatesSection({
   initialTemplates,
 }: TemplatesSectionProps) {
   const [templates, setTemplates] = useState<Template[]>(
-    initialTemplates
+    initialTemplates,
   );
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] =
@@ -29,41 +30,15 @@ export default function TemplatesSection({
   const [search, setSearch] = useState('');
   const [testTemplate, setTestTemplate] =
     useState<Template | null>(null);
-  const [userEmail, setUserEmail] = useState('');
-
-  // Fetch user email for test modal (cached in localStorage)
-  useEffect(() => {
-    async function fetchUserEmail() {
-      // Check cache first
-      const cachedEmail = localStorage.getItem(
-        'fwd_user_email'
-      );
-      if (cachedEmail) {
-        setUserEmail(cachedEmail);
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success && data.data.profile.email) {
-          const email = data.data.profile.email;
-          setUserEmail(email);
-          // Cache for future mounts
-          localStorage.setItem('fwd_user_email', email);
-        }
-      } catch {
-        // Silently fail, user can type email
-      }
-    }
-    fetchUserEmail();
-  }, []);
+  const { userEmail } = useUserEmail();
 
   // Filter templates by search
   const filteredTemplates = templates.filter(
     (t) =>
       t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.subject.toLowerCase().includes(search.toLowerCase())
+      t.subject
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
 
   const openCreateModal = () => {
@@ -76,12 +51,12 @@ export default function TemplatesSection({
     const handleCreateTemplate = () => openCreateModal();
     window.addEventListener(
       'cmd:create-template',
-      handleCreateTemplate
+      handleCreateTemplate,
     );
     return () =>
       window.removeEventListener(
         'cmd:create-template',
-        handleCreateTemplate
+        handleCreateTemplate,
       );
   }, []);
 
@@ -110,7 +85,7 @@ export default function TemplatesSection({
   const saveTemplate = async (
     name: string,
     subject: string,
-    html: string
+    html: string,
   ) => {
     if (!name.trim() || !subject.trim() || !html.trim())
       return;
@@ -136,8 +111,8 @@ export default function TemplatesSection({
           templates.map((t) =>
             t.id === editingTemplate.id
               ? response.data.template
-              : t
-          )
+              : t,
+          ),
         );
       } else {
         setTemplates([
@@ -157,12 +132,12 @@ export default function TemplatesSection({
 
     const res = await fetch(
       `/api/templates/${deleteTarget.id}`,
-      { method: 'DELETE' }
+      { method: 'DELETE' },
     );
     const response = await res.json();
     if (response.success) {
       setTemplates(
-        templates.filter((t) => t.id !== deleteTarget.id)
+        templates.filter((t) => t.id !== deleteTarget.id),
       );
       toast.success(response.message);
     } else {
@@ -198,7 +173,7 @@ export default function TemplatesSection({
           <div className="text-center py-12 border border-border rounded-xl bg-card/50">
             <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-foreground font-medium">
-              No templates match "{search}"
+              No templates match &quot;{search}&quot;
             </p>
             <p className="text-muted-foreground text-sm mt-1">
               Try a different search term

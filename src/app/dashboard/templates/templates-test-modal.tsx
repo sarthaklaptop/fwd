@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
+import { extractTemplateVariables } from '@/lib/templates';
 import toast from 'react-hot-toast';
 
 interface TestEmailModalProps {
@@ -46,18 +47,6 @@ function getSampleValue(
   return `Sample ${varName}`;
 }
 
-// Extract variables from template text
-function extractVariables(text: string): string[] {
-  const matches = text.match(/\{\{([^}]+)\}\}/g) || [];
-  return [
-    ...new Set(
-      matches.map((m) =>
-        m.replace(/\{\{|\}\}/g, '').trim(),
-      ),
-    ),
-  ];
-}
-
 export function TestEmailModal({
   isOpen,
   onClose,
@@ -75,8 +64,8 @@ export function TestEmailModal({
   const detectedVars = template
     ? [
         ...new Set([
-          ...extractVariables(template.subject),
-          ...extractVariables(template.html),
+          ...extractTemplateVariables(template.subject),
+          ...extractTemplateVariables(template.html),
         ]),
       ]
     : [];
@@ -92,8 +81,8 @@ export function TestEmailModal({
       const defaults: Record<string, string> = {};
       const vars = [
         ...new Set([
-          ...extractVariables(template.subject),
-          ...extractVariables(template.html),
+          ...extractTemplateVariables(template.subject),
+          ...extractTemplateVariables(template.html),
         ]),
       ];
       vars.forEach((v) => {
