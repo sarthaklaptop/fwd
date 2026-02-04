@@ -24,6 +24,8 @@ import {
   prepareLinksForShrnk,
 } from '@/lib/shrnk';
 import { checkEmailLimit } from '@/lib/plan-limits';
+import { notifyCampaignComplete } from '@/lib/discord';
+import { unknown } from 'zod';
 
 const BATCH_LIMIT = 500; // Premium feature: max 500 emails per batch
 
@@ -104,7 +106,7 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Batch send error:', error);
     return NextResponse.json(
       { error: 'Failed to process batch' },
@@ -753,19 +755,18 @@ async function createBatchAndEmails(
 
       successCount++;
       console.log(`  ✓ Sent to ${record.to}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       failCount++;
-      console.error(
-        `  ✗ Failed to send to ${record.to}:`,
-        error.message,
-      );
-
+      console.error(`  ✗ Failed to send to ${record.to}:`);
       // Update email status to failed
       await db
         .update(emails)
         .set({
           status: 'failed',
-          errorMessage: error.message,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : 'Unknown error',
           updatedAt: new Date(),
         })
         .where(eq(emails.id, record.id));
@@ -790,6 +791,13 @@ async function createBatchAndEmails(
             : 'partial',
     })
     .where(eq(batches.id, batch.id));
+
+  // Notify admin via Discord
+  await notifyCampaignComplete(batch.id, {
+    total: emailRecords.length,
+    sent: successCount,
+    failed: failCount,
+  });
 
   return {
     batchId: batch.id,

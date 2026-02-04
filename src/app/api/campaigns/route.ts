@@ -25,6 +25,7 @@ import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { logBatchProgress, logError } from '@/lib/sentry';
 import { checkEmailLimit } from '@/lib/plan-limits';
+import { notifyCampaignComplete } from '@/lib/discord';
 
 const BATCH_LIMIT = 500;
 
@@ -422,6 +423,14 @@ export async function POST(req: Request) {
             : 'partial',
     })
     .where(eq(batches.id, batch.id));
+
+  // Notify admin via Discord
+  await notifyCampaignComplete(batch.id, {
+    total: finalRecipients.length,
+    sent: successCount,
+    failed: failCount,
+    suppressed: suppressedSet.size,
+  });
 
   return new ApiResponse(
     200,

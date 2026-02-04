@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { logError, logEvent } from '@/lib/sentry';
+import { notifyNewSubscription } from '@/lib/discord';
 
 // Mode-aware environment variables
 const isLiveMode = process.env.DODO_LIVE_MODE === 'true';
@@ -207,6 +208,9 @@ async function handleSubscriptionActive(
   console.log(
     `[DodoWebhook] User ${userEmail} upgraded to Pro`,
   );
+
+  // Notify admin via Discord
+  await notifyNewSubscription(userEmail, 'Pro');
 }
 
 /**

@@ -4,6 +4,10 @@ import { emails, suppressionList } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { publishEvent } from '@/lib/events';
 import { logEmailEvent, logError } from '@/lib/sentry';
+import {
+  notifyBounce,
+  notifyComplaint,
+} from '@/lib/discord';
 
 interface SNSMessage {
   Type: string;
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
     // SNS subscription confirmation (one-time setup)
     if (message.Type === 'SubscriptionConfirmation') {
       console.log(
-        '📬 SNS Subscription confirmation received'
+        '📬 SNS Subscription confirmation received',
       );
       if (message.SubscribeURL) {
         await fetch(message.SubscribeURL);
@@ -58,7 +62,7 @@ export async function POST(req: Request) {
 
     if (message.Type === 'Notification') {
       const notification: SESNotification = JSON.parse(
-        message.Message
+        message.Message,
       );
 
       if (notification.notificationType === 'Bounce') {
@@ -77,13 +81,13 @@ export async function POST(req: Request) {
     logError(err, { source: 'webhook' });
     return NextResponse.json(
       { error: 'Failed to process notification' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 async function handleBounce(
-  notification: SESBounceNotification
+  notification: SESBounceNotification,
 ) {
   const { bounce, mail } = notification;
   console.log(`🔴 Bounce received: ${bounce.bounceType}`);
@@ -120,9 +124,16 @@ async function handleBounce(
           emailId: emailRecord.id,
           bounceType: bounce.bounceType,
           recipients: bounce.bouncedRecipients.map(
-            (r) => r.emailAddress
+            (r) => r.emailAddress,
           ),
-        }
+        },
+      );
+
+      // Notify admin via Discord
+      await notifyBounce(
+        emailRecord.to,
+        bounce.bounceType,
+        emailRecord.userId,
       );
     }
   }
@@ -141,14 +152,14 @@ async function handleBounce(
         .onConflictDoNothing();
 
       console.log(
-        `🚫 Added ${recipient.emailAddress} to suppression list (bounce)`
+        `🚫 Added ${recipient.emailAddress} to suppression list (bounce)`,
       );
     }
   }
 }
 
 async function handleComplaint(
-  notification: SESComplaintNotification
+  notification: SESComplaintNotification,
 ) {
   const { complaint, mail } = notification;
   console.log('🔴 Complaint received');
@@ -179,9 +190,15 @@ async function handleComplaint(
         {
           emailId: emailRecord.id,
           recipients: complaint.complainedRecipients.map(
-            (r) => r.emailAddress
+            (r) => r.emailAddress,
           ),
-        }
+        },
+      );
+
+      // Notify admin via Discord (complaints are serious!)
+      await notifyComplaint(
+        emailRecord.to,
+        emailRecord.userId,
       );
     }
   }
@@ -199,7 +216,7 @@ async function handleComplaint(
       .onConflictDoNothing();
 
     console.log(
-      `🚫 Added ${recipient.emailAddress} to suppression list (complaint)`
+      `Added ${recipient.emailAddress} to suppression list (complaint)`,
     );
   }
 }
