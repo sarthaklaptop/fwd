@@ -23,6 +23,7 @@ export const emailStatusEnum = pgEnum('email_status', [
 
 // Batch status enum
 export const batchStatusEnum = pgEnum('batch_status', [
+  'scheduled', // Waiting to be sent at scheduled time
   'processing',
   'completed',
   'partial',
@@ -163,6 +164,9 @@ export const batches = pgTable(
     status: batchStatusEnum('status')
       .default('processing')
       .notNull(),
+    // Scheduled sending fields
+    scheduledAt: timestamp('scheduled_at'),
+    timezone: varchar('timezone', { length: 50 }),
     createdAt: timestamp('created_at')
       .defaultNow()
       .notNull(),

@@ -48,7 +48,41 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { templateId, recipients, from } = body;
+  const {
+    templateId,
+    recipients,
+    from,
+    scheduledAt,
+    timezone,
+  } = body;
+
+  // Validate scheduling if provided
+  let scheduleDate: Date | null = null;
+  if (scheduledAt) {
+    scheduleDate = new Date(scheduledAt);
+    if (isNaN(scheduleDate.getTime())) {
+      return new ApiError(
+        400,
+        'Invalid scheduledAt date format',
+      ).send();
+    }
+    // Must be at least 1 minute in the future
+    if (scheduleDate.getTime() <= Date.now() + 60000) {
+      return new ApiError(
+        400,
+        'Scheduled time must be at least 1 minute in the future',
+      ).send();
+    }
+    // Max 30 days in the future
+    const maxScheduleTime =
+      Date.now() + 30 * 24 * 60 * 60 * 1000;
+    if (scheduleDate.getTime() > maxScheduleTime) {
+      return new ApiError(
+        400,
+        'Cannot schedule more than 30 days in advance',
+      ).send();
+    }
+  }
 
   // Default from email if not provided
   const fromAddress =
@@ -176,7 +210,8 @@ export async function POST(req: Request) {
     ).send();
   }
 
-  // Create batch
+  // Create batch with scheduling info if provided
+  const isScheduled = !!scheduleDate;
   const [batch] = await db
     .insert(batches)
     .values({
@@ -188,7 +223,9 @@ export async function POST(req: Request) {
       suppressed: suppressedSet.size,
       duplicates: duplicateCount,
       queued: finalRecipients.length,
-      status: 'processing',
+      status: isScheduled ? 'scheduled' : 'processing',
+      scheduledAt: scheduleDate,
+      timezone: timezone || null,
     })
     .returning({ id: batches.id });
 
@@ -255,6 +292,37 @@ export async function POST(req: Request) {
         })),
       )
       .returning({ id: emails.id });
+
+    // If scheduled, queue a delayed job instead of sending immediately
+    if (isScheduled && scheduleDate) {
+      const delaySeconds = Math.floor(
+        (scheduleDate.getTime() - Date.now()) / 1000,
+      );
+
+      await qstash.publishJSON({
+        url: `${baseUrl}/api/qstash/campaign`,
+        body: { batchId: batch.id },
+        delay: delaySeconds,
+        retries: 3,
+      });
+
+      console.log(
+        `[Campaign] Scheduled batch ${batch.id} for ${scheduleDate.toISOString()} (${delaySeconds}s delay)`,
+      );
+
+      return new ApiResponse(
+        200,
+        {
+          batchId: batch.id,
+          queued: finalRecipients.length,
+          suppressed: suppressedSet.size,
+          duplicates: duplicateCount,
+          scheduledAt: scheduleDate.toISOString(),
+          timezone: timezone || 'UTC',
+        },
+        `Campaign scheduled for ${scheduleDate.toLocaleString()}.`,
+      ).send();
+    }
 
     // Queue emails via QStash - fire and forget (background)
     const userIdForQueue = user.id;
@@ -333,6 +401,29 @@ export async function POST(req: Request) {
       html: emails.html,
     });
 
+  // In DEV mode, if scheduled, just store and return (no actual delay available)
+  if (isScheduled && scheduleDate) {
+    console.log(
+      `[Campaign] DEV MODE: Batch ${batch.id} scheduled for ${scheduleDate.toISOString()}`,
+    );
+    console.log(
+      `[Campaign] DEV MODE: In production, this would send at the scheduled time via QStash.`,
+    );
+
+    return new ApiResponse(
+      200,
+      {
+        batchId: batch.id,
+        queued: finalRecipients.length,
+        suppressed: suppressedSet.size,
+        duplicates: duplicateCount,
+        scheduledAt: scheduleDate.toISOString(),
+        timezone: timezone || 'UTC',
+      },
+      `DEV MODE: Campaign scheduled for ${scheduleDate.toLocaleString()}. (Emails stored but not sent)`,
+    ).send();
+  }
+
   console.log(
     `📧 [DEV MODE] Campaign ${batch.id}: Sending ${emailRecords.length} emails via SES...`,
   );
@@ -387,18 +478,21 @@ export async function POST(req: Request) {
 
       successCount++;
       console.log(`  ✓ Sent to ${record.to}`);
-    } catch (error: any) {
+    } catch (error) {
       failCount++;
       console.error(
         `  ✗ Failed to send to ${record.to}:`,
-        error.message,
+        error instanceof Error ? error.message : error,
       );
 
       await db
         .update(emails)
         .set({
           status: 'failed',
-          errorMessage: error.message,
+          errorMessage:
+            error instanceof Error
+              ? error.message
+              : 'Unknown error',
           updatedAt: new Date(),
         })
         .where(eq(emails.id, record.id));

@@ -12,6 +12,8 @@ import {
   Check,
   Loader2,
   RotateCcw,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
@@ -73,6 +75,14 @@ export function CreateCampaignModal({
     useState(false);
   const [prevRecipientCount, setPrevRecipientCount] =
     useState(0);
+
+  // Scheduling state
+  const [sendNow, setSendNow] = useState(true);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [timezone, setTimezone] = useState(
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
   const [duplicatePrefilling, setDuplicatePrefilling] =
     useState(false);
   // Cache batch emails to avoid duplicate API calls
@@ -333,6 +343,16 @@ export function CreateCampaignModal({
       return;
     }
 
+    // Validate scheduling if not sending now
+    if (!sendNow) {
+      if (!scheduledDate || !scheduledTime) {
+        setError(
+          'Please select a date and time for scheduling',
+        );
+        return;
+      }
+    }
+
     const parsedRecipients = parseRecipients(
       recipients,
       templateVariables,
@@ -350,6 +370,14 @@ export function CreateCampaignModal({
       ? `${fromName.trim()} <${fromEmail}>`
       : fromEmail;
 
+    // Build scheduled time if scheduling
+    let scheduledAt: string | undefined;
+    if (!sendNow && scheduledDate && scheduledTime) {
+      // Create date in the selected timezone
+      const dateTimeStr = `${scheduledDate}T${scheduledTime}`;
+      scheduledAt = new Date(dateTimeStr).toISOString();
+    }
+
     setSending(true);
     setError(null);
 
@@ -363,6 +391,7 @@ export function CreateCampaignModal({
           templateId: selectedTemplate.id,
           recipients: parsedRecipients,
           from,
+          ...(scheduledAt && { scheduledAt, timezone }),
         }),
       });
 
@@ -383,9 +412,17 @@ export function CreateCampaignModal({
           selectedDomain.id,
         );
 
-        toast.success(
-          response.message || 'Campaign sent successfully!',
-        );
+        if (scheduledAt) {
+          toast.success(
+            response.message ||
+              'Campaign scheduled successfully!',
+          );
+        } else {
+          toast.success(
+            response.message ||
+              'Campaign sent successfully!',
+          );
+        }
         onSuccess();
         onClose();
       } else {
@@ -803,16 +840,16 @@ export function CreateCampaignModal({
                       Review Campaign
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <p className="text-xs text-muted-foreground uppercase mb-1">
+                      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                           Template
                         </p>
                         <p className="font-medium text-foreground">
                           {selectedTemplate?.name}
                         </p>
                       </div>
-                      <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                        <p className="text-xs text-muted-foreground uppercase mb-1">
+                      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
                           Recipients
                         </p>
                         <p className="font-medium text-foreground">
@@ -825,17 +862,133 @@ export function CreateCampaignModal({
                         </p>
                       </div>
                     </div>
-                    <div className="p-4 bg-secondary/30 rounded-lg border border-border">
-                      <p className="text-xs text-muted-foreground uppercase mb-2">
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
                         Subject
                       </p>
                       <p className="text-foreground">
                         {selectedTemplate?.subject}
                       </p>
                     </div>
-                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-500 text-sm">
+                    <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg text-blue-400 text-sm">
                       ✨ Links in this email will be
                       automatically tracked via Shrnk
+                    </div>
+
+                    {/* Scheduling Options */}
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border space-y-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                        When to Send
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSendNow(true)}
+                          className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                            sendNow
+                              ? 'bg-foreground/10 text-foreground border border-foreground/20'
+                              : 'bg-transparent text-muted-foreground border border-border hover:bg-muted/50'
+                          }`}
+                        >
+                          <Send className="w-4 h-4" />
+                          Send Now
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSendNow(false)}
+                          className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${
+                            !sendNow
+                              ? 'bg-foreground/10 text-foreground border border-foreground/20'
+                              : 'bg-transparent text-muted-foreground border border-border hover:bg-muted/50'
+                          }`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          Schedule
+                        </button>
+                      </div>
+
+                      {!sendNow && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1.5">
+                              Date
+                            </label>
+                            <input
+                              type="date"
+                              value={scheduledDate}
+                              onChange={(e) =>
+                                setScheduledDate(
+                                  e.target.value,
+                                )
+                              }
+                              min={
+                                new Date()
+                                  .toISOString()
+                                  .split('T')[0]
+                              }
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30 [color-scheme:dark]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1.5">
+                              Time
+                            </label>
+                            <input
+                              type="time"
+                              value={scheduledTime}
+                              onChange={(e) =>
+                                setScheduledTime(
+                                  e.target.value,
+                                )
+                              }
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30 [color-scheme:dark]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1.5">
+                              Timezone
+                            </label>
+                            <select
+                              value={timezone}
+                              onChange={(e) =>
+                                setTimezone(e.target.value)
+                              }
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30 appearance-none cursor-pointer"
+                            >
+                              <option value="America/New_York">
+                                US Eastern (EST)
+                              </option>
+                              <option value="America/Chicago">
+                                US Central (CST)
+                              </option>
+                              <option value="America/Denver">
+                                US Mountain (MST)
+                              </option>
+                              <option value="America/Los_Angeles">
+                                US Pacific (PST)
+                              </option>
+                              <option value="Europe/London">
+                                UK (GMT)
+                              </option>
+                              <option value="Europe/Paris">
+                                Europe Central (CET)
+                              </option>
+                              <option value="Asia/Kolkata">
+                                India (IST)
+                              </option>
+                              <option value="Asia/Tokyo">
+                                Japan (JST)
+                              </option>
+                              <option value="Australia/Sydney">
+                                Australia (AEST)
+                              </option>
+                              <option value="UTC">
+                                UTC
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Send Test Email Button */}
@@ -934,12 +1087,19 @@ export function CreateCampaignModal({
                   {sending ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending...
+                      {sendNow
+                        ? 'Sending...'
+                        : 'Scheduling...'}
                     </>
-                  ) : (
+                  ) : sendNow ? (
                     <>
                       <Send className="w-4 h-4" />
                       Send Campaign
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="w-4 h-4" />
+                      Schedule Campaign
                     </>
                   )}
                 </button>
