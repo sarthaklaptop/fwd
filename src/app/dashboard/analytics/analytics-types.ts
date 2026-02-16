@@ -44,6 +44,10 @@ export interface SkeletonCardProps {
   color: CardColor;
 }
 
-export interface BarChartProps {
+export interface AreaChartProps {
   data: TimelineDataPoint[];
+}
+
+export interface DonutChartProps {
+  data: AnalyticsData;
 }

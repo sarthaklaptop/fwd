@@ -1,101 +1,251 @@
-import type {
-  TimelineDataPoint,
-  BarChartProps,
-} from './analytics-types';
+'use client';
 
-export function BarChart({ data }: BarChartProps) {
-  const maxValue = Math.max(...data.map((d) => d.sent), 1);
-  const barMinWidth = data.length < 10 ? '48px' : undefined;
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import type { AreaChartProps } from './analytics-types';
+
+const COLORS = {
+  sent: '#0ea5e9',
+  delivered: '#10b981',
+  opened: '#8b5cf6',
+};
+
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+  dataKey: string;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}
+
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-4 shadow-2xl">
+      <p className="text-sm font-semibold text-foreground mb-2.5">
+        {formatDateLabel(label || '')}
+      </p>
+      <div className="space-y-1.5">
+        {payload.map((entry) => (
+          <div
+            key={entry.dataKey}
+            className="flex items-center gap-2.5 text-sm"
+          >
+            <div
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ background: entry.color }}
+            />
+            <span className="text-muted-foreground">
+              {entry.name}
+            </span>
+            <span className="font-semibold text-foreground ml-auto tabular-nums">
+              {entry.value.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function EmailAreaChart({ data }: AreaChartProps) {
+  const tickInterval =
+    data.length <= 7
+      ? 0
+      : Math.max(0, Math.floor(data.length / 7) - 1);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-6 text-sm">
+      <div className="flex flex-wrap gap-5 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-sky-500 dark:bg-sky-400 rounded-sm"></div>
-          <span className="text-foreground/70">Sent</span>
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ background: COLORS.sent }}
+          />
+          <span className="text-muted-foreground">Sent</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-sm"></div>
-          <span className="text-foreground/70">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ background: COLORS.delivered }}
+          />
+          <span className="text-muted-foreground">
             Delivered
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-violet-500 dark:bg-violet-400 rounded-sm"></div>
-          <span className="text-foreground/70">Opened</span>
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ background: COLORS.opened }}
+          />
+          <span className="text-muted-foreground">
+            Opened
+          </span>
         </div>
       </div>
 
-      <div className="flex items-end gap-2 h-48 overflow-x-auto pb-4">
-        {data.map((point) => {
-          const sentHeight = Math.max(
-            (point.sent / maxValue) * 100,
-            5
-          );
-          const deliveredHeight = Math.max(
-            (point.delivered / maxValue) * 100,
-            0
-          );
-          const openedHeight = Math.max(
-            (point.opened / maxValue) * 100,
-            0
-          );
-
-          return (
-            <div
-              key={point.date}
-              className="flex flex-col items-center gap-1 group relative"
-              style={{
-                minWidth: barMinWidth,
-                flex: data.length >= 10 ? 1 : undefined,
-              }}
+      <ResponsiveContainer width="100%" height={350}>
+        <AreaChart
+          data={data}
+          margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient
+              id="gradientSent"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
             >
-              <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
-                <div className="bg-popover border border-border rounded-lg p-3 text-sm whitespace-nowrap shadow-xl">
-                  <p className="text-foreground font-semibold mb-2">
-                    {formatDateLabel(point.date)}
-                  </p>
-                  <div className="space-y-1.5">
-                    <p className="text-sky-500 dark:text-sky-400">
-                      Sent: {point.sent}
-                    </p>
-                    <p className="text-emerald-500 dark:text-emerald-400">
-                      Delivered: {point.delivered}
-                    </p>
-                    <p className="text-violet-500 dark:text-violet-400">
-                      Opened: {point.opened}
-                    </p>
-                    {point.bounced > 0 && (
-                      <p className="text-red-500 dark:text-red-400">
-                        Bounced: {point.bounced}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-0.5 items-end h-40">
-                <div
-                  className="w-3 bg-sky-500 dark:bg-sky-400 rounded-t transition-all hover:opacity-80"
-                  style={{ height: `${sentHeight}%` }}
-                />
-                <div
-                  className="w-3 bg-emerald-500 dark:bg-emerald-400 rounded-t transition-all hover:opacity-80"
-                  style={{ height: `${deliveredHeight}%` }}
-                />
-                <div
-                  className="w-3 bg-violet-500 dark:bg-violet-400 rounded-t transition-all hover:opacity-80"
-                  style={{ height: `${openedHeight}%` }}
-                />
-              </div>
-
-              <span className="text-[11px] text-foreground/50 mt-2 whitespace-nowrap">
-                {formatDateShort(point.date)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+              <stop
+                offset="0%"
+                stopColor={COLORS.sent}
+                stopOpacity={0.25}
+              />
+              <stop
+                offset="100%"
+                stopColor={COLORS.sent}
+                stopOpacity={0}
+              />
+            </linearGradient>
+            <linearGradient
+              id="gradientDelivered"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset="0%"
+                stopColor={COLORS.delivered}
+                stopOpacity={0.25}
+              />
+              <stop
+                offset="100%"
+                stopColor={COLORS.delivered}
+                stopOpacity={0}
+              />
+            </linearGradient>
+            <linearGradient
+              id="gradientOpened"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset="0%"
+                stopColor={COLORS.opened}
+                stopOpacity={0.25}
+              />
+              <stop
+                offset="100%"
+                stopColor={COLORS.opened}
+                stopOpacity={0}
+              />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={false}
+            stroke="currentColor"
+            strokeOpacity={0.08}
+          />
+          <XAxis
+            dataKey="date"
+            tickFormatter={formatDateShort}
+            interval={tickInterval}
+            tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
+            axisLine={false}
+            tickLine={false}
+            dy={8}
+          />
+          <YAxis
+            tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
+            axisLine={false}
+            tickLine={false}
+            width={48}
+            allowDecimals={false}
+          />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{
+              stroke: 'var(--color-muted-foreground)',
+              strokeWidth: 1,
+              strokeDasharray: '4 4',
+              strokeOpacity: 0.4,
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="sent"
+            name="Sent"
+            stroke={COLORS.sent}
+            fill="url(#gradientSent)"
+            strokeWidth={2.5}
+            dot={false}
+            activeDot={{
+              r: 5,
+              stroke: COLORS.sent,
+              strokeWidth: 2,
+              fill: 'var(--color-background)',
+            }}
+            animationDuration={1000}
+            animationEasing="ease-out"
+          />
+          <Area
+            type="monotone"
+            dataKey="delivered"
+            name="Delivered"
+            stroke={COLORS.delivered}
+            fill="url(#gradientDelivered)"
+            strokeWidth={2.5}
+            dot={false}
+            activeDot={{
+              r: 5,
+              stroke: COLORS.delivered,
+              strokeWidth: 2,
+              fill: 'var(--color-background)',
+            }}
+            animationDuration={1000}
+            animationEasing="ease-out"
+          />
+          <Area
+            type="monotone"
+            dataKey="opened"
+            name="Opened"
+            stroke={COLORS.opened}
+            fill="url(#gradientOpened)"
+            strokeWidth={2.5}
+            dot={false}
+            activeDot={{
+              r: 5,
+              stroke: COLORS.opened,
+              strokeWidth: 2,
+              fill: 'var(--color-background)',
+            }}
+            animationDuration={1000}
+            animationEasing="ease-out"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
