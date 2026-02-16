@@ -16,6 +16,7 @@ import type { Batch, BatchDetail } from './batches-types';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
+  { value: 'scheduled', label: 'Scheduled' },
   { value: 'processing', label: 'Processing' },
   { value: 'completed', label: 'Completed' },
   { value: 'partial', label: 'Partial' },
@@ -54,6 +55,21 @@ export default function BatchesSection() {
     return matchesSearch && matchesStatus;
   });
 
+  async function fetchBatches() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/batches?limit=50');
+      const response = await res.json();
+      if (response.success) {
+        setBatches(response.data.batches);
+      }
+    } catch (error) {
+      console.error('Failed to fetch batches:', error);
+      toast.error('Failed to load batches');
+    }
+    setLoading(false);
+  }
+
   useEffect(() => {
     fetchBatches();
   }, []);
@@ -72,21 +88,6 @@ export default function BatchesSection() {
         handleNewCampaign,
       );
   }, []);
-
-  async function fetchBatches() {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/batches?limit=50');
-      const response = await res.json();
-      if (response.success) {
-        setBatches(response.data.batches);
-      }
-    } catch (error) {
-      console.error('Failed to fetch batches:', error);
-      toast.error('Failed to load batches');
-    }
-    setLoading(false);
-  }
 
   async function fetchBatchDetail(batch: Batch) {
     setPendingBatchId(batch.id);
@@ -126,6 +127,36 @@ export default function BatchesSection() {
       batchId: batch.id,
     });
     setShowCreateModal(true);
+  }
+
+  async function handleRetryFailed(batchId: string) {
+    try {
+      const res = await fetch(
+        `/api/batches/${batchId}/retry`,
+        {
+          method: 'POST',
+        },
+      );
+      const response = await res.json();
+      if (response.success) {
+        toast.success(
+          response.message || 'Retrying failed emails',
+        );
+        // Refresh the batch detail
+        const batch = batches.find((b) => b.id === batchId);
+        if (batch) {
+          fetchBatchDetail(batch);
+        }
+        fetchBatches();
+      } else {
+        toast.error(
+          response.message || 'Failed to retry emails',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to retry emails:', error);
+      toast.error('Failed to retry emails');
+    }
   }
 
   const pendingBatch = pendingBatchId
@@ -188,6 +219,7 @@ export default function BatchesSection() {
           loading={detailLoading}
           onClose={closeModal}
           onDuplicate={handleDuplicate}
+          onRetryFailed={handleRetryFailed}
         />
       )}
 

@@ -123,6 +123,10 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     string,
     { bg: string; text: string }
   > = {
+    scheduled: {
+      bg: 'bg-indigo-500/10',
+      text: 'text-indigo-500 dark:text-indigo-400',
+    },
     processing: {
       bg: 'bg-blue-500/10',
       text: 'text-blue-500 dark:text-blue-400',

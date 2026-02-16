@@ -4,6 +4,7 @@ import {
   Check,
   Minus,
   RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
@@ -21,6 +22,7 @@ export function BatchDetailModal({
   loading,
   onClose,
   onDuplicate,
+  onRetryFailed,
 }: BatchDetailModalProps) {
   const displayBatch = batch || pendingBatch;
 
@@ -107,26 +109,56 @@ export function BatchDetailModal({
                       {batch.fromEmail}
                     </span>
                   </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => onDuplicate(batch)}
+                      className="rounded-lg"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-1" />
+                      Resend
+                    </Button>
+                    {batch.failed > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          onRetryFailed(batch.id)
+                        }
+                        className="rounded-lg"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Retry {batch.failed} Failed
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!batch.fromEmail && (
+                <div className="flex gap-2">
                   <Button
                     size="sm"
                     onClick={() => onDuplicate(batch)}
                     className="rounded-lg"
                   >
                     <RotateCcw className="w-4 h-4 mr-1" />
-                    Resend
+                    Resend Campaign
                   </Button>
+                  {batch.failed > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        onRetryFailed(batch.id)
+                      }
+                      className="rounded-lg"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      Retry {batch.failed} Failed
+                    </Button>
+                  )}
                 </div>
-              )}
-
-              {!batch.fromEmail && (
-                <Button
-                  size="sm"
-                  onClick={() => onDuplicate(batch)}
-                  className="rounded-lg"
-                >
-                  <RotateCcw className="w-4 h-4 mr-1" />
-                  Resend Campaign
-                </Button>
               )}
 
               {(batch.suppressed > 0 ||

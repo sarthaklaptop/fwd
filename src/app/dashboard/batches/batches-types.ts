@@ -59,6 +59,7 @@ export interface BatchDetailModalProps {
   loading: boolean;
   onClose: () => void;
   onDuplicate: (batch: BatchDetail) => void;
+  onRetryFailed: (batchId: string) => void;
 }
 
 export interface StatCardProps {
