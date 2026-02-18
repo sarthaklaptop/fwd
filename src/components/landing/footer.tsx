@@ -94,6 +94,12 @@ export function Footer({
           {/* Footer Links */}
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <a
+              href="/docs"
+              className="hover:text-foreground transition-colors"
+            >
+              Documentation
+            </a>
+            <a
               href="/terms"
               className="hover:text-foreground transition-colors"
             >

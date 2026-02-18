@@ -261,7 +261,7 @@ export default function Home() {
               Get Started Free
             </Link>
             <Link
-              href="#api"
+              href="/docs"
               className="w-full sm:w-auto px-8 py-3 border border-border text-foreground font-medium rounded-xl hover:bg-card transition-colors"
             >
               View Documentation

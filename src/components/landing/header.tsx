@@ -29,6 +29,7 @@ const defaultNavLinks: NavLink[] = [
   { href: '/#api', label: 'API' },
   { href: '/#features', label: 'Features' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
 ];
 
 export function Header({
