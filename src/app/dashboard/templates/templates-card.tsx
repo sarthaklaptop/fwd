@@ -5,10 +5,9 @@ import {
   Pencil,
   Trash2,
   Copy,
-  Send,
+  Zap,
 } from 'lucide-react';
 import type {
-  Template,
   TemplateCardProps,
   EmptyStateProps,
 } from './templates-types';
@@ -27,20 +26,25 @@ export function TemplateCard({
   onSendTest,
 }: TemplateCardProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-foreground font-medium truncate">
-          {template.name}
-        </h3>
-        <TooltipProvider>
-          <div className="flex gap-1">
+    <TooltipProvider>
+      <div className="bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+        <div className="flex justify-between items-start mb-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <h3 className="text-foreground font-medium truncate cursor-default">
+                {template.name}
+              </h3>
+            </TooltipTrigger>
+            <TooltipContent>{template.name}</TooltipContent>
+          </Tooltip>
+          <div className="flex gap-1 shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onSendTest(template)}
-                  className="inline-flex items-center gap-1 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 text-sm p-1 rounded hover:bg-green-500/10 transition-colors"
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
-                  <Send className="w-4 h-4" />
+                  <Zap className="w-3.5 h-3.5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Send Test</TooltipContent>
@@ -49,9 +53,9 @@ export function TemplateCard({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onDuplicate(template)}
-                  className="inline-flex items-center gap-1 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm p-1 rounded hover:bg-blue-500/10 transition-colors"
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-3.5 h-3.5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Duplicate</TooltipContent>
@@ -60,9 +64,9 @@ export function TemplateCard({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onEdit(template)}
-                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-sm p-1 rounded hover:bg-primary/10 transition-colors"
+                  className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Edit</TooltipContent>
@@ -71,34 +75,34 @@ export function TemplateCard({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onDelete(template)}
-                  className="inline-flex items-center gap-1 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-sm p-1 rounded hover:bg-red-500/10 transition-colors"
+                  className="p-1.5 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Delete</TooltipContent>
             </Tooltip>
           </div>
-        </TooltipProvider>
-      </div>
-      <p className="text-muted-foreground text-sm truncate mb-2">
-        {template.subject}
-      </p>
-      {template.variables && (
-        <div className="flex flex-wrap gap-1">
-          {JSON.parse(template.variables).map(
-            (v: string) => (
-              <span
-                key={v}
-                className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
-              >
-                {`{{${v}}}`}
-              </span>
-            )
-          )}
         </div>
-      )}
-    </div>
+        <p className="text-muted-foreground text-sm truncate mb-2">
+          {template.subject}
+        </p>
+        {template.variables && (
+          <div className="flex flex-wrap gap-1">
+            {JSON.parse(template.variables).map(
+              (v: string) => (
+                <span
+                  key={v}
+                  className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
+                >
+                  {`{{${v}}}`}
+                </span>
+              ),
+            )}
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
 

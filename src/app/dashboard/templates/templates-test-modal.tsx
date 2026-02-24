@@ -11,7 +11,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
-import { extractTemplateVariables } from '@/lib/templates';
+import {
+  extractTemplateVariables,
+  getSampleValue,
+} from '@/lib/templates';
 import toast from 'react-hot-toast';
 
 interface TestEmailModalProps {
@@ -23,28 +26,6 @@ interface TestEmailModalProps {
     html: string;
   } | null;
   userEmail: string;
-}
-
-// Smart sample values based on variable name
-function getSampleValue(
-  varName: string,
-  userEmail: string,
-): string {
-  const lower = varName.toLowerCase();
-  if (lower.includes('name') && lower.includes('first'))
-    return 'John';
-  if (lower.includes('name') && lower.includes('last'))
-    return 'Doe';
-  if (lower.includes('name')) return 'John Doe';
-  if (lower.includes('email')) return userEmail;
-  if (lower.includes('company') || lower.includes('org'))
-    return 'Acme Inc';
-  if (lower.includes('phone')) return '+1 555-123-4567';
-  if (lower.includes('date'))
-    return new Date().toLocaleDateString();
-  if (lower.includes('url') || lower.includes('link'))
-    return 'https://example.com';
-  return `Sample ${varName}`;
 }
 
 export function TestEmailModal({
