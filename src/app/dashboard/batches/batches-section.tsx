@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   RefreshCw,
   Plus,
@@ -46,6 +46,9 @@ const STATUS_OPTIONS = [
 export default function BatchesSection() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [selectedBatch, setSelectedBatch] =
     useState<BatchDetail | null>(null);
   const [pendingBatchId, setPendingBatchId] = useState<
@@ -60,39 +63,61 @@ export default function BatchesSection() {
     batchId: string;
   } | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Filter batches client-side
-  const filteredBatches = batches.filter((b) => {
-    const matchesSearch =
-      !search ||
-      (b.templateName
-        ?.toLowerCase()
-        .includes(search.toLowerCase()) ??
-        false);
-    const matchesStatus =
-      !statusFilter || b.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearch(search),
+      500,
+    );
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  async function fetchBatches() {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/batches?limit=50');
-      const response = await res.json();
-      if (response.success) {
-        setBatches(response.data.batches);
+  const fetchBatches = useCallback(
+    async (cursor?: string | null) => {
+      if (cursor) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
       }
-    } catch (error) {
-      console.error('Failed to fetch batches:', error);
-      toast.error('Failed to load batches');
-    }
-    setLoading(false);
-  }
+
+      try {
+        const params = new URLSearchParams();
+        if (cursor) params.set('cursor', cursor);
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (statusFilter) params.set('status', statusFilter);
+        params.set('limit', '20');
+
+        const res = await fetch(`/api/batches?${params}`);
+        const response = await res.json();
+        if (response.success) {
+          if (cursor) {
+            setBatches((prev) => [
+              ...prev,
+              ...response.data.batches,
+            ]);
+          } else {
+            setBatches(response.data.batches);
+          }
+          setNextCursor(response.data.nextCursor);
+          setHasMore(response.data.hasMore);
+        }
+      } catch (error) {
+        console.error('Failed to fetch batches:', error);
+        toast.error('Failed to load batches');
+      }
+
+      setLoading(false);
+      setLoadingMore(false);
+    },
+    [debouncedSearch, statusFilter],
+  );
 
   useEffect(() => {
     fetchBatches();
-  }, []);
+  }, [fetchBatches]);
 
   // Listen for command palette event
   useEffect(() => {
@@ -189,7 +214,7 @@ export default function BatchesSection() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search by template..."
+              placeholder="Search by template or sender..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-transparent border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
@@ -224,11 +249,30 @@ export default function BatchesSection() {
       </div>
 
       <BatchesTable
-        batches={filteredBatches}
+        batches={batches}
         loading={loading}
         onSelectBatch={fetchBatchDetail}
         onCreateClick={() => setShowCreateModal(true)}
       />
+
+      {hasMore && !loading && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => fetchBatches(nextCursor)}
+            disabled={loadingMore}
+            className="inline-flex items-center gap-2 px-6 py-2 bg-transparent hover:bg-primary/10 text-foreground text-sm font-medium rounded-lg border border-border hover:border-primary/30 transition-colors disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <>
+                <div className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+                Loading...
+              </>
+            ) : (
+              'Load More'
+            )}
+          </button>
+        </div>
+      )}
 
       {(selectedBatch || pendingBatchId) && (
         <BatchDetailModal
