@@ -15,17 +15,16 @@ import type {
 // ── Custom rich toast helpers ──────────────────────────────────────────────
 
 function maskKey(key: string) {
-  // Show first segment and last 4 chars, mask the middle
-  const parts = key.split('_');
-  const prefix = parts.slice(0, 3).join('_'); // e.g. fwd_sk_live
-  const suffix = key.slice(-4);               // e.g. a3f9
-  return `${prefix}_${'•'.repeat(8)}${suffix}`;
+  // Show first 10 chars + 8 dots + last 4 chars — works for any key format
+  const start = key.slice(0, 10);
+  const end = key.slice(-4);
+  return `${start}${'•'.repeat(8)}${end}`;
 }
 
 function toastApiKeyCreated(key: string) {
   toast(
     (t) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', maxWidth: 320, boxSizing: 'border-box' }}>
         <div style={{
           width: 36, height: 36, borderRadius: 10, flexShrink: 0,
           background: 'rgba(99,102,241,0.15)', display: 'flex',
@@ -33,7 +32,7 @@ function toastApiKeyCreated(key: string) {
         }}>
           <Key size={18} color='#6366f1' />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>API key created</p>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.6, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {maskKey(key)}
