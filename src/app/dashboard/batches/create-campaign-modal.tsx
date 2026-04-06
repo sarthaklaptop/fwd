@@ -30,6 +30,40 @@ import {
   getMissingVariablesCount,
 } from '@/lib/campaign-utils';
 
+function toastCampaignSent(recipientCount: number) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Send size={18} color="#6366f1" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Campaign sent!</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{recipientCount} recipient{recipientCount !== 1 ? 's' : ''} queued</p>
+        </div>
+      </div>
+    ),
+    { duration: 5000 },
+  );
+}
+
+function toastCampaignScheduled(recipientCount: number) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Calendar size={18} color="#a855f7" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Campaign scheduled</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{recipientCount} recipient{recipientCount !== 1 ? 's' : ''} will be emailed</p>
+        </div>
+      </div>
+    ),
+    { duration: 5000 },
+  );
+}
+
 export function CreateCampaignModal({
   isOpen,
   duplicateFrom,
@@ -413,15 +447,9 @@ export function CreateCampaignModal({
         );
 
         if (scheduledAt) {
-          toast.success(
-            response.message ||
-              'Campaign scheduled successfully!',
-          );
+          toastCampaignScheduled(parsedRecipients.length);
         } else {
-          toast.success(
-            response.message ||
-              'Campaign sent successfully!',
-          );
+          toastCampaignSent(parsedRecipients.length);
         }
         onSuccess();
         onClose();

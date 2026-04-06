@@ -18,7 +18,25 @@ import {
   ChevronDown,
   Check,
   Copy,
+  FileDown,
 } from 'lucide-react';
+
+function toastEmailsExported(count?: number) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FileDown size={18} color="#22c55e" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>CSV exported</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{count ? `${count} emails downloaded` : 'Download complete'}</p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
 import type {
   Email,
   EmailDetail,
@@ -152,7 +170,7 @@ export default function EmailsSection() {
         }.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success('Emails exported successfully');
+        toastEmailsExported();
       } else {
         toast.error('Failed to export emails');
       }

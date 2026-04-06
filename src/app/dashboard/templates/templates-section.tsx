@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ConfirmDialog } from '@/components/ui';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, FileText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUserEmail } from '@/hooks/use-user-email';
 import { TemplateCard, EmptyState } from './templates-card';
@@ -12,6 +12,40 @@ import type {
   Template,
   TemplatesSectionProps,
 } from './templates-types';
+
+function toastTemplateSaved(name: string, isEdit: boolean) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FileText size={18} color="#6366f1" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{isEdit ? 'Template updated' : 'Template created'}</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
+
+function toastTemplateDeleted(name: string) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Trash2 size={18} color="#ef4444" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Template deleted</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name} removed</p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
 
 export default function TemplatesSection({
   initialTemplates,
@@ -96,52 +130,64 @@ export default function TemplatesSection({
       : '/api/templates';
     const method = editingTemplate ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, subject, html }),
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, subject, html }),
+      });
 
-    const response = await res.json();
-    setLoading(false);
+      const response = await res.json();
 
-    if (response.success) {
-      if (editingTemplate) {
-        setTemplates(
-          templates.map((t) =>
-            t.id === editingTemplate.id
-              ? response.data.template
-              : t,
-          ),
-        );
+      if (response.success) {
+        if (editingTemplate) {
+          setTemplates(
+            templates.map((t) =>
+              t.id === editingTemplate.id
+                ? response.data.template
+                : t,
+            ),
+          );
+        } else {
+          setTemplates([
+            response.data.template,
+            ...templates,
+          ]);
+        }
+        toastTemplateSaved(name, !!editingTemplate);
+        closeModal();
       } else {
-        setTemplates([
-          response.data.template,
-          ...templates,
-        ]);
+        toast.error(response.message);
       }
-      toast.success(response.message);
-      closeModal();
-    } else {
-      toast.error(response.message);
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      toast.error('Failed to save template');
     }
+
+    setLoading(false);
   };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+    const targetName = deleteTarget.name;
 
-    const res = await fetch(
-      `/api/templates/${deleteTarget.id}`,
-      { method: 'DELETE' },
-    );
-    const response = await res.json();
-    if (response.success) {
-      setTemplates(
-        templates.filter((t) => t.id !== deleteTarget.id),
+    try {
+      const res = await fetch(
+        `/api/templates/${deleteTarget.id}`,
+        { method: 'DELETE' },
       );
-      toast.success(response.message);
-    } else {
-      toast.error(response.message);
+      const response = await res.json();
+      if (response.success) {
+        setTemplates(
+          templates.filter((t) => t.id !== deleteTarget.id),
+        );
+        toastTemplateDeleted(targetName);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      toast.error('Failed to delete template');
     }
     setDeleteTarget(null);
   };

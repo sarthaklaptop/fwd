@@ -8,6 +8,7 @@ import {
   Mail,
   Variable,
   CheckCircle,
+  FlaskConical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
@@ -16,6 +17,23 @@ import {
   getSampleValue,
 } from '@/lib/templates';
 import toast from 'react-hot-toast';
+
+function toastTestEmailSent(to: string, templateName: string) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FlaskConical size={18} color="#22c55e" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Test email sent</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{templateName} → {to}</p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
 
 interface TestEmailModalProps {
   isOpen: boolean;
@@ -101,7 +119,7 @@ export function TestEmailModal({
       }
 
       setSent(true);
-      toast.success(`Test email sent to ${email}!`);
+      toastTestEmailSent(email, template.name);
     } catch (error) {
       toast.error(
         error instanceof Error

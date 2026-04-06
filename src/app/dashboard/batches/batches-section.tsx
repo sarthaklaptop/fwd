@@ -7,12 +7,32 @@ import {
   Search,
   ChevronDown,
   Check,
+  RotateCcw,
+  Send,
+  Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BatchesTable } from './batches-table';
 import { BatchDetailModal } from './batches-modal';
 import { CreateCampaignModal } from './create-campaign-modal';
 import type { Batch, BatchDetail } from './batches-types';
+
+function toastBatchRetried(count?: number) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: 320, boxSizing: 'border-box' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: 'rgba(234,179,8,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <RotateCcw size={18} color="#eab308" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Retrying failed emails</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>{count ? `${count} email${count !== 1 ? 's' : ''} queued` : 'Emails queued for retry'}</p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -139,9 +159,7 @@ export default function BatchesSection() {
       );
       const response = await res.json();
       if (response.success) {
-        toast.success(
-          response.message || 'Retrying failed emails',
-        );
+        toastBatchRetried(response.data?.count);
         // Refresh the batch detail
         const batch = batches.find((b) => b.id === batchId);
         if (batch) {
