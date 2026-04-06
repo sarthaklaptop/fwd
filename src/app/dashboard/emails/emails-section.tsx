@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatRelativeTime } from '@/lib/utils';
+import toast from 'react-hot-toast';
 import {
   Mail,
   RefreshCw,
@@ -94,6 +95,7 @@ export default function EmailsSection() {
         }
       } catch (error) {
         console.error('Failed to fetch emails:', error);
+        toast.error('Failed to load emails');
       }
 
       setLoading(false);
@@ -117,6 +119,7 @@ export default function EmailsSection() {
       }
     } catch (error) {
       console.error('Failed to fetch email detail:', error);
+      toast.error('Failed to load email details');
     }
     setDetailLoading(false);
   }
@@ -149,9 +152,13 @@ export default function EmailsSection() {
         }.csv`;
         a.click();
         URL.revokeObjectURL(url);
+        toast.success('Emails exported successfully');
+      } else {
+        toast.error('Failed to export emails');
       }
     } catch (error) {
       console.error('Failed to export:', error);
+      toast.error('Failed to export emails');
     }
     setExporting(false);
   }

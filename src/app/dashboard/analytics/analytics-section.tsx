@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmailAreaChart } from './analytics-chart';
 import { DonutChart } from './analytics-donut';
@@ -51,6 +52,7 @@ export default function AnalyticsSection() {
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      toast.error('Failed to load analytics data');
     }
     setLoading(false);
   }

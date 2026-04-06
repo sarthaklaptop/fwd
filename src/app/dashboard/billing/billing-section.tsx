@@ -94,6 +94,7 @@ export default function BillingSection() {
       }
     } catch (error) {
       console.error('Failed to fetch subscription:', error);
+      toast.error('Failed to load subscription details');
     } finally {
       setLoading(false);
     }

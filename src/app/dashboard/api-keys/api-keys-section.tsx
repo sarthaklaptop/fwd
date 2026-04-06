@@ -43,54 +43,65 @@ export default function ApiKeysSection({
     if (!newKeyName.trim()) return;
     setLoading(true);
 
-    const res = await fetch('/api/keys', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newKeyName }),
-    });
+    try {
+      const res = await fetch('/api/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName }),
+      });
 
-    const response = await res.json();
-    setLoading(false);
+      const response = await res.json();
 
-    if (response.success) {
-      setNewKey(response.data.key);
-      setShowModal(true);
-      setKeys([
-        {
-          ...response.data,
-          lastUsedAt: null,
-          revokedAt: null,
-        },
-        ...keys,
-      ]);
-      setNewKeyName('');
-      toast.success(response.message);
-    } else {
-      toast.error(response.message);
+      if (response.success) {
+        setNewKey(response.data.key);
+        setShowModal(true);
+        setKeys([
+          {
+            ...response.data,
+            lastUsedAt: null,
+            revokedAt: null,
+          },
+          ...keys,
+        ]);
+        setNewKeyName('');
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      console.error('Failed to create API key:', error);
+      toast.error('Failed to create API key');
     }
+
+    setLoading(false);
   };
 
   const confirmRevoke = async () => {
     if (!revokeTarget) return;
 
-    const res = await fetch(
-      `/api/keys/${revokeTarget.id}`,
-      {
-        method: 'DELETE',
-      }
-    );
-    const response = await res.json();
-    if (response.success) {
-      setKeys(
-        keys.map((k) =>
-          k.id === revokeTarget.id
-            ? { ...k, revokedAt: new Date() }
-            : k
-        )
+    try {
+      const res = await fetch(
+        `/api/keys/${revokeTarget.id}`,
+        {
+          method: 'DELETE',
+        }
       );
-      toast.success(response.message);
-    } else {
-      toast.error(response.message);
+      const response = await res.json();
+      if (response.success) {
+        setKeys(
+          keys.map((k) =>
+            k.id === revokeTarget.id
+              ? { ...k, revokedAt: new Date() }
+              : k
+          )
+        );
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      console.error('Failed to revoke API key:', error);
+      toast.error('Failed to revoke API key');
     }
     setRevokeTarget(null);
   };
