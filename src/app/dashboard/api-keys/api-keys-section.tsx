@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ConfirmDialog } from '@/components/ui';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Key, ClipboardCheck, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { KeysTable } from './api-keys-table';
 import { NewKeyModal } from './api-keys-modal';
@@ -11,6 +11,97 @@ import type {
   ApiKey,
   ApiKeysSectionProps,
 } from './api-keys-types';
+
+// ── Custom rich toast helpers ──────────────────────────────────────────────
+
+function maskKey(key: string) {
+  // Show first segment and last 4 chars, mask the middle
+  const parts = key.split('_');
+  const prefix = parts.slice(0, 3).join('_'); // e.g. fwd_sk_live
+  const suffix = key.slice(-4);               // e.g. a3f9
+  return `${prefix}_${'•'.repeat(8)}${suffix}`;
+}
+
+function toastApiKeyCreated(key: string) {
+  toast(
+    (t) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: 'rgba(99,102,241,0.15)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Key size={18} color='#6366f1' />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>API key created</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {maskKey(key)}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(key);
+            toast.dismiss(t.id);
+            toastApiKeyCopied();
+          }}
+          style={{
+            flexShrink: 0, background: 'none', border: 'none',
+            color: '#6366f1', fontWeight: 600, fontSize: 12,
+            cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
+          }}
+        >
+          Copy
+        </button>
+      </div>
+    ),
+    { duration: 8000 },
+  );
+}
+
+function toastApiKeyCopied() {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: 'rgba(148,163,184,0.12)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <ClipboardCheck size={18} color='#94a3b8' />
+        </div>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>API key copied</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6 }}>Stored to clipboard</p>
+        </div>
+      </div>
+    ),
+    { duration: 3000 },
+  );
+}
+
+function toastApiKeyRevoked(key: ApiKey) {
+  toast(
+    () => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: 'rgba(239,68,68,0.12)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <KeyRound size={18} color='#ef4444' />
+        </div>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>API key revoked</p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.6, fontFamily: 'monospace' }}>
+            {key.keyPrefix}••••{key.name.slice(-4) || key.name} deleted
+          </p>
+        </div>
+      </div>
+    ),
+    { duration: 4000 },
+  );
+}
 
 export default function ApiKeysSection({
   initialKeys,
@@ -64,7 +155,7 @@ export default function ApiKeysSection({
           ...keys,
         ]);
         setNewKeyName('');
-        toast.success(response.message);
+        toastApiKeyCreated(response.data.key);
       } else {
         toast.error(response.message);
       }
@@ -95,7 +186,7 @@ export default function ApiKeysSection({
               : k
           )
         );
-        toast.success(response.message);
+        toastApiKeyRevoked(revokeTarget);
       } else {
         toast.error(response.message);
       }
