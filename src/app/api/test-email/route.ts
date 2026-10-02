@@ -7,6 +7,7 @@ import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
 import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
+import { resolveSender, DEFAULT_FROM_EMAIL } from '@/lib/sender';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -69,8 +70,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Determine from address
-  let fromAddress = from;
-  if (!fromAddress) {
+  let fromAddress: string;
+  if (from) {
+    const fromValidation = await resolveSender(from, user.id);
+    if (!fromValidation.valid) {
+      return new ApiError(400, fromValidation.error).send();
+    }
+    fromAddress = fromValidation.fromEmail;
+  } else {
     // Use first verified domain or fallback
     const [domain] = await db
       .select()
@@ -87,8 +94,7 @@ export async function POST(req: NextRequest) {
       fromAddress = `test@${domain.domain}`;
     } else {
       // Fallback to environment variable
-      fromAddress =
-        process.env.SES_FROM_EMAIL || 'noreply@fwd.dev';
+      fromAddress = DEFAULT_FROM_EMAIL;
     }
   }
 

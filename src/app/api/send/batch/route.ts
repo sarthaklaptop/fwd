@@ -25,6 +25,7 @@ import {
 } from '@/lib/shrnk';
 import { checkEmailLimit } from '@/lib/plan-limits';
 import { notifyCampaignComplete } from '@/lib/discord';
+import { DEFAULT_FROM_EMAIL } from '@/lib/sender';
 
 const BATCH_LIMIT = 500; // Premium feature: max 500 emails per batch
 
@@ -722,9 +723,7 @@ async function createBatchAndEmails(
       }
 
       const command = new SendEmailCommand({
-        Source:
-          process.env.SES_FROM_EMAIL ||
-          'sarthaklaptop402@gmail.com',
+        Source: DEFAULT_FROM_EMAIL,
         Destination: { ToAddresses: [record.to] },
         Message: {
           Subject: { Data: record.subject },
