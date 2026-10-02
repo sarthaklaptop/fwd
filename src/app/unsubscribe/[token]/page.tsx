@@ -13,7 +13,7 @@ export default async function UnsubscribePage({ params }: PageProps) {
   const { token } = await params;
   
   // Verify the JWT token
-  const payload = verifyUnsubscribeToken(token);
+  const payload = await verifyUnsubscribeToken(token);
   
   if (!payload) {
     redirect('/unsubscribe/invalid');

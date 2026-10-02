@@ -25,6 +25,11 @@ const envSchema = z.object({
     QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
     QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
 
+    // Unsubscribe links (signs JWTs; generate with: openssl rand -base64 48)
+    UNSUBSCRIBE_SECRET: z
+        .string()
+        .min(32, 'UNSUBSCRIBE_SECRET is required and must be at least 32 characters'),
+
     // App
     NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     VERCEL: z.string().optional(), // Set automatically on Vercel
