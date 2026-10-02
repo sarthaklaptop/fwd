@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { ses } from '@/lib/ses';
+import { resolveSender } from '@/lib/sender';
 import { db } from '@/db';
 import { emails, batches } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -59,10 +60,6 @@ async function incrementBatchCounter(
   }
 }
 
-const DEFAULT_FROM_EMAIL =
-  process.env.SES_FROM_EMAIL ||
-  'noreply@fwd.sarthak.online';
-
 async function handler(req: NextRequest) {
   const body = await req.json();
   const {
@@ -76,13 +73,6 @@ async function handler(req: NextRequest) {
     replyTo,
   } = body;
 
-  // Use custom from if provided, otherwise default
-  const fromEmail = from || DEFAULT_FROM_EMAIL;
-
-  console.log(
-    `📧 Processing email ${emailId} to: ${to} from: ${fromEmail}`
-  );
-
   // Get the email record to find batch ID and userId (fallback)
   const emailRecord = await db.query.emails.findFirst({
     where: eq(emails.id, emailId),
@@ -90,6 +80,45 @@ async function handler(req: NextRequest) {
   });
 
   const effectiveUserId = userId || emailRecord?.userId;
+
+  // Re-check the sender against the owner's verified domains. This also
+  // covers messages queued before sender validation existed on every route.
+  const fromValidation = await resolveSender(
+    from,
+    emailRecord?.userId ?? userId,
+  );
+  if (!fromValidation.valid) {
+    console.error(
+      `Email ${emailId} rejected: ${fromValidation.error}`
+    );
+    if (emailId) {
+      await db
+        .update(emails)
+        .set({
+          status: 'failed',
+          errorMessage: fromValidation.error,
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId));
+
+      if (emailRecord?.batchId) {
+        await incrementBatchCounter(
+          emailRecord.batchId,
+          false
+        );
+      }
+    }
+    // Not retryable: return 200 so QStash doesn't resend
+    return NextResponse.json({
+      success: false,
+      error: fromValidation.error,
+    });
+  }
+  const fromEmail = fromValidation.fromEmail;
+
+  console.log(
+    `📧 Processing email ${emailId} to: ${to} from: ${fromEmail}`
+  );
 
   try {
     const baseUrl =

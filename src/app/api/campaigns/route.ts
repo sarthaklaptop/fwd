@@ -25,6 +25,7 @@ import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { logBatchProgress, logError } from '@/lib/sentry';
 import { checkEmailLimit } from '@/lib/plan-limits';
+import { resolveSender } from '@/lib/sender';
 import { notifyCampaignComplete } from '@/lib/discord';
 
 const BATCH_LIMIT = 500;
@@ -84,12 +85,6 @@ export async function POST(req: Request) {
     }
   }
 
-  // Default from email if not provided
-  const fromAddress =
-    from ||
-    process.env.SES_FROM_EMAIL ||
-    'noreply@fwd.sarthak.online';
-
   if (
     !templateId ||
     !recipients ||
@@ -112,6 +107,13 @@ export async function POST(req: Request) {
   if (!template) {
     return new ApiError(404, 'Template not found').send();
   }
+
+  // Validate the sender against the user's verified domains
+  const fromValidation = await resolveSender(from, user.id);
+  if (!fromValidation.valid) {
+    return new ApiError(400, fromValidation.error).send();
+  }
+  const fromAddress = fromValidation.fromEmail;
 
   // Validate batch size
   if (recipients.length === 0) {

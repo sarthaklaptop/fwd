@@ -8,7 +8,6 @@ import {
   apiKeys,
   suppressionList,
   templates,
-  domains,
 } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { hashApiKey } from '@/lib/api-keys';
@@ -16,71 +15,7 @@ import { injectOpenTracking } from '@/lib/tracking';
 import { substituteVariables } from '@/lib/templates';
 import { publishEvent } from '@/lib/events';
 import { checkEmailLimit } from '@/lib/plan-limits';
-
-// Default sender email for free users
-const DEFAULT_FROM_EMAIL =
-  process.env.SES_FROM_EMAIL ||
-  'noreply@fwd.sarthak.online';
-
-// Validate and get sender email address
-async function validateFromAddress(
-  fromInput: string | undefined,
-  userId: string,
-): Promise<{
-  valid: boolean;
-  fromEmail: string;
-  error?: string;
-}> {
-  // No custom from = use default
-  if (!fromInput) {
-    return { valid: true, fromEmail: DEFAULT_FROM_EMAIL };
-  }
-
-  // Parse "Name <email@domain.com>" or "email@domain.com"
-  const emailMatch =
-    fromInput.match(/<([^>]+)>/) ||
-    fromInput.match(/^([^\s<]+@[^\s>]+)$/);
-  const email = emailMatch
-    ? emailMatch[1].toLowerCase()
-    : fromInput.toLowerCase();
-
-  // Extract domain from email
-  const domainMatch = email.match(/@([^@]+)$/);
-  if (!domainMatch) {
-    return {
-      valid: false,
-      fromEmail: '',
-      error: 'Invalid from email format',
-    };
-  }
-
-  const domain = domainMatch[1];
-
-  // Check if it's the default domain (allowed for everyone)
-  const defaultDomain = DEFAULT_FROM_EMAIL.split('@')[1];
-  if (domain === defaultDomain) {
-    return { valid: true, fromEmail: fromInput };
-  }
-
-  // Check if user has this domain verified
-  const verifiedDomain = await db.query.domains.findFirst({
-    where: and(
-      eq(domains.userId, userId),
-      eq(domains.domain, domain),
-      eq(domains.status, 'verified'),
-    ),
-  });
-
-  if (!verifiedDomain) {
-    return {
-      valid: false,
-      fromEmail: '',
-      error: `Domain '${domain}' is not verified. Add and verify it in your dashboard first.`,
-    };
-  }
-
-  return { valid: true, fromEmail: fromInput };
-}
+import { resolveSender } from '@/lib/sender';
 
 export async function POST(req: Request) {
   try {
@@ -194,7 +129,7 @@ export async function POST(req: Request) {
     }
 
     // Validate custom from address
-    const fromValidation = await validateFromAddress(
+    const fromValidation = await resolveSender(
       from,
       keyRecord.userId,
     );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { ses } from '@/lib/ses';
+import { resolveSender } from '@/lib/sender';
 import { db } from '@/db';
 import { emails, batches } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -11,10 +12,6 @@ import {
 } from '@/lib/tracking';
 import { notifyCampaignComplete } from '@/lib/discord';
 import { qstash } from '@/lib/qstash';
-
-const DEFAULT_FROM_EMAIL =
-  process.env.SES_FROM_EMAIL ||
-  'noreply@fwd.sarthak.online';
 
 /**
  * QStash worker to process scheduled campaigns.
@@ -167,10 +164,14 @@ async function handler(req: NextRequest) {
         );
       }
 
-      const fromEmail =
-        record.fromEmail ||
-        batch.fromEmail ||
-        DEFAULT_FROM_EMAIL;
+      const fromValidation = await resolveSender(
+        record.fromEmail || batch.fromEmail,
+        record.userId,
+      );
+      if (!fromValidation.valid) {
+        throw new Error(fromValidation.error);
+      }
+      const fromEmail = fromValidation.fromEmail;
 
       const command = new SendEmailCommand({
         Source: fromEmail,
