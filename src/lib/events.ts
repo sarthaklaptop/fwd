@@ -11,6 +11,40 @@ interface EventPayload {
   [key: string]: any;
 }
 
+export type WebhookEventType =
+  | 'email.sent'
+  | 'email.delivered'
+  | 'email.opened'
+  | 'email.clicked'
+  | 'email.bounced'
+  | 'email.complained'
+  | 'email.unsubscribed';
+
+/**
+ * Body delivered to customer webhooks. The same shape is used by the
+ * dashboard "Test" button. `id` is generated once per event so QStash
+ * retries carry the same id and receivers can deduplicate.
+ */
+export interface WebhookEvent {
+  id: string;
+  eventType: string;
+  timestamp: string;
+  data: EventPayload;
+}
+
+export function buildWebhookEvent(
+  eventType: string,
+  data: EventPayload,
+  timestamp: string = new Date().toISOString(),
+): WebhookEvent {
+  return {
+    id: `evt_${crypto.randomBytes(12).toString('hex')}`,
+    eventType,
+    timestamp,
+    data,
+  };
+}
+
 /**
  * Publishes an event to the QStash webhook worker.
  * In production: Queues job to QStash -> Worker -> User URL
@@ -18,14 +52,7 @@ interface EventPayload {
  */
 export async function publishEvent(
   userId: string,
-  eventType:
-    | 'email.sent'
-    | 'email.delivered'
-    | 'email.opened'
-    | 'email.clicked'
-    | 'email.bounced'
-    | 'email.complained'
-    | 'email.unsubscribed',
+  eventType: WebhookEventType,
   payload: EventPayload
 ) {
   try {
@@ -33,10 +60,7 @@ export async function publishEvent(
       process.env.NEXT_PUBLIC_APP_URL ||
       'http://localhost:3000';
     const timestamp = Math.floor(Date.now() / 1000);
-    const finalPayload = {
-      ...payload,
-      timestamp: new Date().toISOString(),
-    };
+    const finalPayload = buildWebhookEvent(eventType, payload);
 
     // DEV MODE: Send directly (Simulate Worker)
     if (!process.env.QSTASH_TOKEN) {

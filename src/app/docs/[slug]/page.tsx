@@ -1290,9 +1290,13 @@ function WebhooksContent() {
         title="Example payload"
         language="json"
         code={`{
-  "emailId": "email_abc123",
-  "to": "user@example.com",
-  "timestamp": "2025-01-15T12:00:00.000Z"
+  "id": "evt_4f9c2a7b1e8d3c6a5b0f1e2d",
+  "eventType": "email.sent",
+  "timestamp": "2025-01-15T12:00:00.000Z",
+  "data": {
+    "emailId": "email_abc123",
+    "to": "user@example.com"
+  }
 }`}
       />
 
@@ -1311,19 +1315,23 @@ function WebhooksContent() {
         language="javascript"
         code={`const crypto = require('crypto');
 
-function verifyWebhookSignature(req, secret) {
-  const signature = req.headers['x-fwd-signature'];
-  const [tPart, vPart] = signature.split(',');
+// rawBody: the exact request body string, before JSON parsing
+function verifyWebhookSignature(rawBody, signatureHeader, secret) {
+  const [tPart, vPart] = signatureHeader.split(',');
   const timestamp = tPart.replace('t=', '');
   const receivedHash = vPart.replace('v1=', '');
 
-  const payload = \`\${timestamp}.\${JSON.stringify(req.body)}\`;
   const expectedHash = crypto
     .createHmac('sha256', secret)
-    .update(payload)
+    .update(\`\${timestamp}.\${rawBody}\`)
     .digest('hex');
 
-  if (expectedHash !== receivedHash) {
+  const expected = Buffer.from(expectedHash, 'hex');
+  const received = Buffer.from(receivedHash, 'hex');
+  if (
+    expected.length !== received.length ||
+    !crypto.timingSafeEqual(expected, received)
+  ) {
     throw new Error('Invalid webhook signature');
   }
 

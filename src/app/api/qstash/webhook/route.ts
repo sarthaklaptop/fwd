@@ -4,10 +4,17 @@ import { db } from "@/db";
 import { webhooks, webhookEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { buildWebhookEvent, type WebhookEvent } from "@/lib/events";
 
 async function handler(req: NextRequest) {
     const body = await req.json();
-    const { userId, eventType, payload } = body;
+    const { userId, eventType } = body;
+    // Events queued before the envelope format carry only the data; wrap them
+    // so every delivery has the same { id, eventType, timestamp, data } shape
+    const payload: WebhookEvent =
+        body.payload?.eventType && body.payload?.data
+            ? body.payload
+            : buildWebhookEvent(eventType, body.payload ?? {}, body.payload?.timestamp);
 
     console.log(`📡 Processing webhook event: ${eventType} for user ${userId}`);
 
