@@ -30,6 +30,38 @@ export interface ParsedSender {
   domain: string;
 }
 
+const ENCODED_WORD_RE = /^=\?UTF-8\?B\?([A-Za-z0-9+/]+={0,2})\?=$/i;
+
+/**
+ * Undo the encoding formatSender applies, so stored Source values validate
+ * again in the workers. Accepts a bare name, a fully quoted name with no
+ * inner quotes or backslashes, or a single UTF-8 base64 encoded-word.
+ * Returns null for any other quoting.
+ */
+function decodeDisplayName(raw: string): string | null {
+  const encoded = raw.match(ENCODED_WORD_RE);
+  // Any other encoded-word syntax could be decoded by mail clients into
+  // characters the name check never saw
+  if (!encoded && raw.includes('=?')) return null;
+
+  const quoted = raw.match(/^"([^"\\]*)"$/);
+  if (quoted) return quoted[1].trim();
+
+  if (encoded) {
+    const decoded = Buffer.from(encoded[1], 'base64').toString('utf8');
+    // Reject invalid UTF-8 and non-canonical base64
+    if (
+      decoded.includes('\uFFFD') ||
+      Buffer.from(decoded, 'utf8').toString('base64') !== encoded[1]
+    ) {
+      return null;
+    }
+    return decoded.trim();
+  }
+
+  return raw;
+}
+
 /**
  * Strictly parse a From value as exactly one mailbox, either
  * `local@domain` or `Display Name <local@domain>`.
@@ -47,7 +79,8 @@ export function parseSender(input: string): ParsedSender | null {
 
   const angle = trimmed.match(/^([^<>]*)<([^<>]+)>$/);
   if (angle) {
-    const rawName = angle[1].trim();
+    const rawName = decodeDisplayName(angle[1].trim());
+    if (rawName === null) return null;
     if (rawName) {
       if (
         rawName.length > MAX_DISPLAY_NAME_LENGTH ||
