@@ -17,6 +17,7 @@ import {
   getSampleValue,
 } from '@/lib/templates';
 import toast from 'react-hot-toast';
+import { notifyUsageChanged } from '@/lib/usage-events';
 
 function toastTestEmailSent(to: string, templateName: string) {
   toast(
@@ -120,6 +121,7 @@ export function TestEmailModal({
 
       setSent(true);
       toastTestEmailSent(email, template.name);
+      notifyUsageChanged();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -278,8 +280,8 @@ export function TestEmailModal({
 
               {/* Info note */}
               <p className="text-xs text-muted-foreground text-center">
-                Test emails are not tracked and include
-                [TEST] in the subject.
+                Test emails count toward your monthly limit,
+                are not tracked, and include [TEST] in the subject.
               </p>
             </>
           )}

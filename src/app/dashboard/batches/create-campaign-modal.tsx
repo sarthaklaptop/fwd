@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import { useUserEmail } from '@/hooks/use-user-email';
+import { notifyUsageChanged } from '@/lib/usage-events';
 import { TestEmailModal } from '../templates/templates-test-modal';
 import type {
   Template,
@@ -432,6 +433,7 @@ export function CreateCampaignModal({
       const response = await res.json();
 
       if (response.success) {
+        notifyUsageChanged();
         // Save last used values
         localStorage.setItem(
           'fwd_last_from_name',

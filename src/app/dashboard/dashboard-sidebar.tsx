@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Key,
@@ -40,6 +40,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import { useTheme } from 'next-themes';
+import { USAGE_CHANGED_EVENT } from '@/lib/usage-events';
 
 interface DashboardSidebarProps {
   children: React.ReactNode;
@@ -50,15 +51,77 @@ interface DashboardSidebarProps {
   userEmail: string;
 }
 
+// How often to refresh the usage counter while the tab is visible, to pick up
+// sends made outside the dashboard (API keys, scheduled campaigns)
+const USAGE_POLL_MS = 30_000;
+
 export default function DashboardSidebar({
   children,
-  emailsThisMonth = 0,
-  monthlyLimit = 100,
-  plan = 'free',
+  emailsThisMonth: initialEmailsThisMonth = 0,
+  monthlyLimit: initialMonthlyLimit = 100,
+  plan: initialPlan = 'free',
   userName,
   userEmail,
 }: DashboardSidebarProps) {
   const [open, setOpen] = useState(true);
+  const [usage, setUsage] = useState({
+    emailsThisMonth: initialEmailsThisMonth,
+    monthlyLimit: initialMonthlyLimit,
+    plan: initialPlan,
+  });
+  const { emailsThisMonth, monthlyLimit, plan } = usage;
+
+  // Keep in sync when the server layout re-renders (e.g. router.refresh())
+  const initialKey = `${initialEmailsThisMonth}/${initialMonthlyLimit}/${initialPlan}`;
+  const [syncedKey, setSyncedKey] = useState(initialKey);
+  if (syncedKey !== initialKey) {
+    setSyncedKey(initialKey);
+    setUsage({
+      emailsThisMonth: initialEmailsThisMonth,
+      monthlyLimit: initialMonthlyLimit,
+      plan: initialPlan,
+    });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshUsage = async () => {
+      try {
+        const res = await fetch('/api/usage', { cache: 'no-store' });
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!cancelled && data) {
+          setUsage({
+            emailsThisMonth: data.emailsThisMonth,
+            monthlyLimit: data.monthlyLimit,
+            plan: data.plan,
+          });
+        }
+      } catch {
+        // Keep showing the last known value
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshUsage();
+    };
+
+    window.addEventListener(USAGE_CHANGED_EVENT, refreshUsage);
+    window.addEventListener('focus', refreshUsage);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshUsage();
+    }, USAGE_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(USAGE_CHANGED_EVENT, refreshUsage);
+      window.removeEventListener('focus', refreshUsage);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      clearInterval(interval);
+    };
+  }, []);
   const router = useRouter();
   const { theme, setTheme } = useTheme();
 
