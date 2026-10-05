@@ -12,6 +12,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { notifyUsageChanged } from '@/lib/usage-events';
 import { BatchesTable } from './batches-table';
 import { BatchDetailModal } from './batches-modal';
 import { CreateCampaignModal } from './create-campaign-modal';
@@ -185,6 +186,7 @@ export default function BatchesSection() {
       const response = await res.json();
       if (response.success) {
         toastBatchRetried(response.data?.count);
+        notifyUsageChanged();
         // Refresh the batch detail
         const batch = batches.find((b) => b.id === batchId);
         if (batch) {

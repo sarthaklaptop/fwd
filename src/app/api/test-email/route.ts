@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
-import { domains } from '@/db/schema';
+import { domains, emails } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
 import { ses } from '@/lib/ses';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { resolveSender, DEFAULT_FROM_EMAIL } from '@/lib/sender';
+import { checkEmailLimit } from '@/lib/plan-limits';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -27,6 +28,15 @@ export async function POST(req: NextRequest) {
     return new ApiError(
       400,
       'Missing required fields'
+    ).send();
+  }
+
+  // Test emails count toward the monthly plan limit like any other send
+  const limitCheck = await checkEmailLimit(user.id);
+  if (!limitCheck.allowed) {
+    return new ApiError(
+      429,
+      limitCheck.error || 'Monthly email limit reached',
     ).send();
   }
 
@@ -103,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   // Send via SES
   try {
-    await ses.send(
+    const result = await ses.send(
       new SendEmailCommand({
         Source: fromAddress,
         Destination: { ToAddresses: [to] },
@@ -115,6 +125,21 @@ export async function POST(req: NextRequest) {
         },
       })
     );
+
+    // Record the send so it counts toward monthly usage
+    try {
+      await db.insert(emails).values({
+        userId: user.id,
+        to,
+        fromEmail: fromAddress,
+        subject: finalSubject,
+        html: finalHtml,
+        status: 'completed',
+        sesMessageId: result.MessageId,
+      });
+    } catch (recordError) {
+      console.error('Failed to record test email:', recordError);
+    }
 
     return new ApiResponse(
       200,
