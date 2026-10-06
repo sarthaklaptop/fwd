@@ -59,6 +59,9 @@ export default function BatchesSection() {
   const [retryingBatchId, setRetryingBatchId] = useState<
     string | null
   >(null);
+  // Set synchronously so a fast double-click can't start two retries
+  // (state only updates on the next render)
+  const retryInFlightRef = useRef(false);
   // Batch whose detail modal is open, read by the post-retry refresh loop
   const openBatchIdRef = useRef<string | null>(null);
   const retryRefreshTimer = useRef<ReturnType<
@@ -231,7 +234,8 @@ export default function BatchesSection() {
 
   async function handleRetryFailed(batchId: string) {
     // Ignore repeat clicks while a retry request is running
-    if (retryingBatchId) return;
+    if (retryInFlightRef.current) return;
+    retryInFlightRef.current = true;
     setRetryingBatchId(batchId);
     try {
       const res = await fetch(
@@ -254,6 +258,7 @@ export default function BatchesSection() {
       console.error('Failed to retry emails:', error);
       toast.error('Failed to retry emails');
     } finally {
+      retryInFlightRef.current = false;
       setRetryingBatchId(null);
     }
   }
