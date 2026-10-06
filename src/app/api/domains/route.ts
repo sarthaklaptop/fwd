@@ -9,6 +9,10 @@ import {
   VerifyDomainDkimCommand,
 } from '@aws-sdk/client-ses';
 import { checkDomainLimit } from '@/lib/plan-limits';
+import {
+  isReservedDomain,
+  isVerifiedByAnotherUser,
+} from '@/lib/domain-ownership';
 
 // Get user's domains
 export async function GET() {
@@ -98,6 +102,26 @@ export async function POST(req: Request) {
             'Invalid domain format. Example: example.com or mail.example.co.uk',
         },
         { status: 400 },
+      );
+    }
+
+    // Platform domains can't be added by tenants (shared SES account)
+    if (isReservedDomain(cleanDomain)) {
+      return NextResponse.json(
+        { error: 'This domain is reserved and cannot be added.' },
+        { status: 400 },
+      );
+    }
+
+    // SES verification is account-wide, so a domain another tenant has
+    // verified would otherwise become "verified" for this user too
+    if (await isVerifiedByAnotherUser(cleanDomain, user.id)) {
+      return NextResponse.json(
+        {
+          error:
+            'This domain is already verified by another account. If you own it, contact support.',
+        },
+        { status: 409 },
       );
     }
 

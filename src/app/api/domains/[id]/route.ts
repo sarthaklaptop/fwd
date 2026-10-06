@@ -5,6 +5,10 @@ import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { ses } from '@/lib/ses';
 import { DeleteIdentityCommand } from '@aws-sdk/client-ses';
+import {
+  isReservedDomain,
+  countOtherDomainRows,
+} from '@/lib/domain-ownership';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -102,18 +106,29 @@ export async function DELETE(
       );
     }
 
-    // Delete from SES
-    try {
-      await ses.send(
-        new DeleteIdentityCommand({
-          Identity: domain.domain,
-        })
+    // The SES identity is shared by the whole account: only remove it when
+    // no other tenant row references the domain and it isn't a platform domain
+    const otherRows = await countOtherDomainRows(
+      domain.domain,
+      domain.id
+    );
+    if (isReservedDomain(domain.domain) || otherRows > 0) {
+      console.log(
+        `Keeping SES identity ${domain.domain} (reserved or used by ${otherRows} other row(s))`
       );
-    } catch (sesError) {
-      console.error(
-        'SES delete error (non-fatal):',
-        sesError
-      );
+    } else {
+      try {
+        await ses.send(
+          new DeleteIdentityCommand({
+            Identity: domain.domain,
+          })
+        );
+      } catch (sesError) {
+        console.error(
+          'SES delete error (non-fatal):',
+          sesError
+        );
+      }
     }
 
     // Delete from database

@@ -8,6 +8,7 @@ import {
   GetIdentityVerificationAttributesCommand,
   GetIdentityDkimAttributesCommand,
 } from '@aws-sdk/client-ses';
+import { isVerifiedByAnotherUser } from '@/lib/domain-ownership';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -95,6 +96,29 @@ export async function POST(
       dkimStatus === 'Failed'
     ) {
       newStatus = 'failed';
+    }
+
+    // Only one account may own a verified domain. SES reports Success for
+    // the whole account, so check nobody else already holds it.
+    if (
+      verified &&
+      (await isVerifiedByAnotherUser(domain.domain, user.id))
+    ) {
+      await db
+        .update(domains)
+        .set({
+          status: 'failed',
+          lastCheckAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(domains.id, id));
+      return NextResponse.json(
+        {
+          error:
+            'This domain is already verified by another account. If you own it, contact support.',
+        },
+        { status: 409 },
+      );
     }
 
     // Update database
