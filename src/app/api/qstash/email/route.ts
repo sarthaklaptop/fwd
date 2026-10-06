@@ -11,6 +11,8 @@ import { deliverEmail } from '@/lib/deliver-email';
 import { logError } from '@/lib/sentry';
 
 const SENT_STATUSES = new Set(['completed', 'bounced', 'complained']);
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function markFailed(
   emailId: string,
@@ -47,15 +49,17 @@ async function handler(req: NextRequest) {
     replyTo,
   } = body;
 
-  // Malformed job: nothing to send or record, so don't let QStash retry it
-  if (typeof emailId !== 'string' || !emailId) {
-    console.error('Email job without emailId, dropping:', {
+  // Malformed job: nothing to send or record, so don't let QStash retry it.
+  // A non-UUID id would make the database lookup throw and the job retry.
+  if (typeof emailId !== 'string' || !UUID_RE.test(emailId)) {
+    console.error('Email job with missing or invalid emailId, dropping:', {
+      emailId,
       to,
       subject,
     });
     return NextResponse.json({
       success: false,
-      error: 'Missing emailId',
+      error: 'Missing or invalid emailId',
     });
   }
 

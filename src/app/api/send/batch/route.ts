@@ -619,7 +619,7 @@ async function createBatchAndEmails(
               );
 
               return {
-                destination: `${baseUrlForQueue}/api/qstash/email`,
+                url: `${baseUrlForQueue}/api/qstash/email`,
                 body: {
                   emailId: record.id,
                   to: chunkRecipients[idx].to,
@@ -652,7 +652,7 @@ async function createBatchAndEmails(
             const results = await Promise.allSettled(
               batchMessages.map((msg) =>
                 qstash.publishJSON({
-                  url: msg.destination,
+                  url: msg.url,
                   body: msg.body,
                   retries: msg.retries,
                   delay: msg.delay,

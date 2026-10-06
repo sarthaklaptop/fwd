@@ -23,6 +23,7 @@ export function BatchDetailModal({
   onClose,
   onDuplicate,
   onRetryFailed,
+  retrying,
 }: BatchDetailModalProps) {
   const displayBatch = batch || pendingBatch;
 
@@ -125,10 +126,15 @@ export function BatchDetailModal({
                         onClick={() =>
                           onRetryFailed(batch.id)
                         }
+                        disabled={retrying}
                         className="rounded-lg"
                       >
-                        <RefreshCw className="w-4 h-4 mr-1" />
-                        Retry {batch.failed} Failed
+                        <RefreshCw
+                          className={`w-4 h-4 mr-1 ${retrying ? 'animate-spin' : ''}`}
+                        />
+                        {retrying
+                          ? 'Retrying…'
+                          : `Retry ${batch.failed} Failed`}
                       </Button>
                     )}
                   </div>
@@ -152,10 +158,15 @@ export function BatchDetailModal({
                       onClick={() =>
                         onRetryFailed(batch.id)
                       }
+                      disabled={retrying}
                       className="rounded-lg"
                     >
-                      <RefreshCw className="w-4 h-4 mr-1" />
-                      Retry {batch.failed} Failed
+                      <RefreshCw
+                        className={`w-4 h-4 mr-1 ${retrying ? 'animate-spin' : ''}`}
+                      />
+                      {retrying
+                        ? 'Retrying…'
+                        : `Retry ${batch.failed} Failed`}
                     </Button>
                   )}
                 </div>

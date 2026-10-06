@@ -56,6 +56,14 @@ export default function BatchesSection() {
     string | null
   >(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [retryingBatchId, setRetryingBatchId] = useState<
+    string | null
+  >(null);
+  // Batch whose detail modal is open, read by the post-retry refresh loop
+  const openBatchIdRef = useRef<string | null>(null);
+  const retryRefreshTimer = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const [showCreateModal, setShowCreateModal] =
     useState(false);
   const [duplicateFrom, setDuplicateFrom] = useState<{
@@ -135,7 +143,17 @@ export default function BatchesSection() {
       );
   }, []);
 
+  // Stop any post-retry refresh loop when the section unmounts
+  useEffect(() => {
+    return () => {
+      if (retryRefreshTimer.current) {
+        clearTimeout(retryRefreshTimer.current);
+      }
+    };
+  }, []);
+
   async function fetchBatchDetail(batch: Batch) {
+    openBatchIdRef.current = batch.id;
     setPendingBatchId(batch.id);
     setDetailLoading(true);
     try {
@@ -156,6 +174,7 @@ export default function BatchesSection() {
   }
 
   function closeModal() {
+    openBatchIdRef.current = null;
     setSelectedBatch(null);
     setPendingBatchId(null);
   }
@@ -175,7 +194,45 @@ export default function BatchesSection() {
     setShowCreateModal(true);
   }
 
+  // After a retry the emails are sent in the background (QStash), so poll
+  // the open batch quietly until it is no longer in progress.
+  function refreshAfterRetry(batchId: string, attempt = 0) {
+    if (retryRefreshTimer.current) {
+      clearTimeout(retryRefreshTimer.current);
+    }
+    retryRefreshTimer.current = setTimeout(async () => {
+      if (openBatchIdRef.current !== batchId) return;
+      try {
+        const res = await fetch(`/api/batches/${batchId}`);
+        const response = await res.json();
+        if (
+          response.success &&
+          openBatchIdRef.current === batchId
+        ) {
+          setSelectedBatch({
+            ...response.data.batch,
+            emails: response.data.emails,
+            linkStats: response.data.linkStats || null,
+          });
+          const status = response.data.batch.status;
+          const inProgress =
+            status === 'processing' || status === 'scheduled';
+          if (inProgress && attempt < 9) {
+            refreshAfterRetry(batchId, attempt + 1);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh batch:', error);
+      }
+      fetchBatches();
+    }, 3000);
+  }
+
   async function handleRetryFailed(batchId: string) {
+    // Ignore repeat clicks while a retry request is running
+    if (retryingBatchId) return;
+    setRetryingBatchId(batchId);
     try {
       const res = await fetch(
         `/api/batches/${batchId}/retry`,
@@ -185,14 +242,9 @@ export default function BatchesSection() {
       );
       const response = await res.json();
       if (response.success) {
-        toastBatchRetried(response.data?.count);
+        toastBatchRetried(response.data?.retried);
         notifyUsageChanged();
-        // Refresh the batch detail
-        const batch = batches.find((b) => b.id === batchId);
-        if (batch) {
-          fetchBatchDetail(batch);
-        }
-        fetchBatches();
+        refreshAfterRetry(batchId);
       } else {
         toast.error(
           response.message || 'Failed to retry emails',
@@ -201,8 +253,11 @@ export default function BatchesSection() {
     } catch (error) {
       console.error('Failed to retry emails:', error);
       toast.error('Failed to retry emails');
+    } finally {
+      setRetryingBatchId(null);
     }
   }
+
 
   const pendingBatch = pendingBatchId
     ? batches.find((b) => b.id === pendingBatchId)
@@ -284,6 +339,10 @@ export default function BatchesSection() {
           onClose={closeModal}
           onDuplicate={handleDuplicate}
           onRetryFailed={handleRetryFailed}
+          retrying={
+            !!selectedBatch &&
+            retryingBatchId === selectedBatch.id
+          }
         />
       )}
 
