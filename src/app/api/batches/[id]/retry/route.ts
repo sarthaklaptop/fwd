@@ -2,12 +2,20 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
 import { batches, emails } from '@/db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
 import { qstash } from '@/lib/qstash';
+import {
+  syncBatchCounts,
+  failUnqueuedEmails,
+} from '@/lib/batch-counts';
+import { QSTASH_EMAIL_RETRIES } from '@/lib/qstash-config';
+import { deliverEmail } from '@/lib/deliver-email';
+import { resolveSender } from '@/lib/sender';
 
-const isProd = process.env.NODE_ENV === 'production';
+// Same production check as the other send routes
+const isProd = !!process.env.VERCEL;
 const baseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   'http://localhost:3000';
@@ -85,46 +93,86 @@ export async function POST(
     })
     .where(inArray(emails.id, emailIds));
 
-  // Update batch status to processing and decrement failed count
-  await db
-    .update(batches)
-    .set({
-      status: 'processing',
-      failed: sql`failed - ${emailIds.length}`,
-    })
-    .where(eq(batches.id, batchId));
+  // Recount from email statuses; the batch is back in progress
+  await syncBatchCounts(batchId);
 
   if (isProd) {
-    // Production: Queue via QStash with full email data
-    for (const email of failedEmails) {
-      await qstash.publishJSON({
-        url: `${baseUrl}/api/qstash/email`,
-        body: {
-          emailId: email.id,
-          to: email.to,
-          subject: email.subject,
-          html: email.html,
-          text: email.text,
-          userId: email.userId || user.id,
-          from: email.fromEmail || batch.fromEmail,
-        },
-        retries: 3,
-      });
-    }
+    // Production: queue each email for the email worker
+    const results = await Promise.allSettled(
+      failedEmails.map((email) =>
+        qstash.publishJSON({
+          url: `${baseUrl}/api/qstash/email`,
+          body: {
+            emailId: email.id,
+            to: email.to,
+            subject: email.subject,
+            html: email.html,
+            text: email.text,
+            userId: email.userId || user.id,
+            from: email.fromEmail || batch.fromEmail,
+          },
+          retries: QSTASH_EMAIL_RETRIES,
+        }),
+      ),
+    );
+    await failUnqueuedEmails(
+      batchId,
+      failedEmails
+        .filter(
+          (_, idx) => results[idx].status === 'rejected',
+        )
+        .map((email) => email.id),
+      'Could not queue email for delivery',
+    );
 
     console.log(
       `[Retry] Queued ${emailIds.length} failed emails for batch ${batchId}`,
     );
   } else {
-    // Dev mode: Queue via QStash campaign worker
-    await qstash.publishJSON({
-      url: `${baseUrl}/api/qstash/campaign`,
-      body: { batchId, retryOnly: true, emailIds },
-      retries: 3,
-    });
+    // Dev mode: QStash cannot reach localhost, so send directly
+    for (const email of failedEmails) {
+      const sender = await resolveSender(
+        email.fromEmail || batch.fromEmail,
+        email.userId || user.id,
+      );
+      try {
+        if (!sender.valid) throw new Error(sender.error);
+        const { messageId } = await deliverEmail({
+          emailId: email.id,
+          to: email.to,
+          subject: email.subject,
+          html: email.html,
+          text: email.text,
+          fromEmail: sender.fromEmail,
+          userId: email.userId || user.id,
+        });
+        await db
+          .update(emails)
+          .set({
+            status: 'completed',
+            sesMessageId: messageId,
+            errorMessage: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(emails.id, email.id));
+      } catch (error) {
+        await db
+          .update(emails)
+          .set({
+            status: 'failed',
+            errorMessage:
+              error instanceof Error
+                ? error.message
+                : 'Unknown error',
+            updatedAt: new Date(),
+          })
+          .where(eq(emails.id, email.id));
+      }
+    }
+    await syncBatchCounts(batchId);
 
     console.log(
-      `[Retry] DEV: Triggering retry for ${emailIds.length} emails in batch ${batchId}`,
+      `[Retry] DEV: Re-sent ${emailIds.length} emails in batch ${batchId}`,
     );
   }
 

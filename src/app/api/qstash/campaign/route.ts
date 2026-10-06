@@ -12,6 +12,8 @@ import {
 } from '@/lib/tracking';
 import { notifyCampaignComplete } from '@/lib/discord';
 import { qstash } from '@/lib/qstash';
+import { syncBatchCounts } from '@/lib/batch-counts';
+import { QSTASH_EMAIL_RETRIES } from '@/lib/qstash-config';
 
 /**
  * QStash worker to process scheduled campaigns.
@@ -122,7 +124,7 @@ async function handler(req: NextRequest) {
               userId: record.userId,
               from: record.fromEmail || batch.fromEmail,
             },
-            retries: 3,
+            retries: QSTASH_EMAIL_RETRIES,
           }),
         ),
       );
@@ -226,22 +228,9 @@ async function handler(req: NextRequest) {
     }
   }
 
-  // Update batch status
-  const finalStatus =
-    failCount === 0
-      ? 'completed'
-      : successCount === 0
-        ? 'failed'
-        : 'partial';
-
-  await db
-    .update(batches)
-    .set({
-      completed: successCount,
-      failed: failCount,
-      status: finalStatus,
-    })
-    .where(eq(batches.id, batchId));
+  // Update batch counters and status from the emails' statuses
+  const synced = await syncBatchCounts(batchId);
+  const finalStatus = synced?.status;
 
   // Discord notification
   await notifyCampaignComplete(batchId, {

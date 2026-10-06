@@ -16,6 +16,7 @@ import { substituteVariables } from '@/lib/templates';
 import { publishEvent } from '@/lib/events';
 import { checkEmailLimit } from '@/lib/plan-limits';
 import { resolveSender } from '@/lib/sender';
+import { QSTASH_EMAIL_RETRIES } from '@/lib/qstash-config';
 
 export async function POST(req: Request) {
   try {
@@ -250,7 +251,7 @@ export async function POST(req: Request) {
         from: validatedFrom,
         replyTo,
       },
-      retries: 3,
+      retries: QSTASH_EMAIL_RETRIES,
     });
 
     Promise.all([

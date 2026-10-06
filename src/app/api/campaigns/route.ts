@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
 import {
@@ -27,6 +27,11 @@ import { logBatchProgress, logError } from '@/lib/sentry';
 import { checkEmailLimit } from '@/lib/plan-limits';
 import { resolveSender } from '@/lib/sender';
 import { notifyCampaignComplete } from '@/lib/discord';
+import {
+  syncBatchCounts,
+  failUnqueuedEmails,
+} from '@/lib/batch-counts';
+import { QSTASH_EMAIL_RETRIES } from '@/lib/qstash-config';
 
 const BATCH_LIMIT = 500;
 
@@ -301,12 +306,28 @@ export async function POST(req: Request) {
         (scheduleDate.getTime() - Date.now()) / 1000,
       );
 
-      await qstash.publishJSON({
-        url: `${baseUrl}/api/qstash/campaign`,
-        body: { batchId: batch.id },
-        delay: delaySeconds,
-        retries: 3,
-      });
+      try {
+        await qstash.publishJSON({
+          url: `${baseUrl}/api/qstash/campaign`,
+          body: { batchId: batch.id },
+          delay: delaySeconds,
+          retries: QSTASH_EMAIL_RETRIES,
+        });
+      } catch (error) {
+        console.error(
+          `❌ Campaign ${batch.id}: could not schedule:`,
+          error,
+        );
+        await failUnqueuedEmails(
+          batch.id,
+          emailIds.map((e) => e.id),
+          'Could not schedule campaign',
+        );
+        return new ApiError(
+          502,
+          'Could not schedule the campaign. Please try again.',
+        ).send();
+      }
 
       console.log(
         `[Campaign] Scheduled batch ${batch.id} for ${scheduleDate.toISOString()} (${delaySeconds}s delay)`,
@@ -326,11 +347,13 @@ export async function POST(req: Request) {
       ).send();
     }
 
-    // Queue emails via QStash - fire and forget (background)
+    // Queue emails via QStash after the response is sent. after() keeps the
+    // function alive until this finishes, unlike a bare fire-and-forget promise.
     const userIdForQueue = user.id;
-    (async () => {
+    after(async () => {
+      const queued = new Set<string>();
+      const chunkSize = 50;
       try {
-        const chunkSize = 50;
         for (
           let i = 0;
           i < emailIds.length;
@@ -341,7 +364,7 @@ export async function POST(req: Request) {
             i,
             i + chunkSize,
           );
-          await Promise.all(
+          const results = await Promise.allSettled(
             chunkIds.map((record, idx) =>
               qstash.publishJSON({
                 url: `${baseUrl}/api/qstash/email`,
@@ -353,21 +376,40 @@ export async function POST(req: Request) {
                   userId: userIdForQueue,
                   from: fromAddress,
                 },
-                retries: 3,
+                retries: QSTASH_EMAIL_RETRIES,
               }),
             ),
           );
+          results.forEach((result, idx) => {
+            if (result.status === 'fulfilled') {
+              queued.add(chunkIds[idx].id);
+            } else {
+              console.error(
+                `❌ Campaign ${batch.id}: QStash queuing error:`,
+                result.reason,
+              );
+            }
+          });
         }
-        console.log(
-          `✅ Campaign ${batch.id}: All ${emailIds.length} emails queued to QStash`,
-        );
       } catch (error) {
         console.error(
           `❌ Campaign ${batch.id}: QStash queuing error:`,
           error,
         );
+      } finally {
+        // Anything not confirmed as queued will never be sent
+        await failUnqueuedEmails(
+          batch.id,
+          emailIds
+            .map((record) => record.id)
+            .filter((id) => !queued.has(id)),
+          'Could not queue email for delivery',
+        );
+        console.log(
+          `✅ Campaign ${batch.id}: ${queued.size}/${emailIds.length} emails queued to QStash`,
+        );
       }
-    })();
+    });
 
     return new ApiResponse(
       200,
@@ -505,20 +547,8 @@ export async function POST(req: Request) {
     `📧 [DEV MODE] Campaign ${batch.id}: ${successCount} sent, ${failCount} failed`,
   );
 
-  // Update batch status
-  await db
-    .update(batches)
-    .set({
-      completed: successCount,
-      failed: failCount,
-      status:
-        failCount === 0
-          ? 'completed'
-          : failCount === emailRecords.length
-            ? 'failed'
-            : 'partial',
-    })
-    .where(eq(batches.id, batch.id));
+  // Update batch counters and status from the emails' statuses
+  await syncBatchCounts(batch.id);
 
   // Notify admin via Discord
   await notifyCampaignComplete(batch.id, {
