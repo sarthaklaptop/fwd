@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { qstash } from '@/lib/qstash';
 import { SendEmailCommand } from '@aws-sdk/client-ses';
 import { ses } from '@/lib/ses';
@@ -25,6 +25,11 @@ import {
 } from '@/lib/shrnk';
 import { checkEmailLimit } from '@/lib/plan-limits';
 import { notifyCampaignComplete } from '@/lib/discord';
+import {
+  syncBatchCounts,
+  failUnqueuedEmails,
+} from '@/lib/batch-counts';
+import { QSTASH_EMAIL_RETRIES } from '@/lib/qstash-config';
 import { DEFAULT_FROM_EMAIL } from '@/lib/sender';
 
 const BATCH_LIMIT = 500; // Premium feature: max 500 emails per batch
@@ -571,8 +576,10 @@ async function createBatchAndEmails(
     const SES_RATE_LIMIT = 14; // emails per second
     const BATCH_CHUNK_SIZE = 50; // Optimal batch size for QStash batchJSON
 
-    // Start queuing in background, don't await
-    (async () => {
+    // Queue after the response is sent. after() keeps the function alive until
+    // this finishes, unlike a bare fire-and-forget promise.
+    after(async () => {
+      const queued = new Set<string>();
       try {
         const totalEmails = emailIdsForQueue.length;
         const estimatedDuration = Math.ceil(
@@ -621,7 +628,7 @@ async function createBatchAndEmails(
                   text: chunkRecipients[idx].text,
                   userId: userIdForQueue,
                 },
-                retries: 3,
+                retries: QSTASH_EMAIL_RETRIES,
                 delay: delaySeconds,
               };
             },
@@ -630,6 +637,9 @@ async function createBatchAndEmails(
           try {
             // Single HTTP call for up to 50 messages
             await qstash.batchJSON(batchMessages);
+            chunkIds.forEach((record) =>
+              queued.add(record.id),
+            );
             console.log(
               `  📦 Chunk ${chunkNumber}/${totalChunks}: ${chunkIds.length} emails queued`,
             );
@@ -639,7 +649,7 @@ async function createBatchAndEmails(
               `  ⚠️ Chunk ${chunkNumber} batch failed, falling back to individual publish:`,
               batchError,
             );
-            await Promise.all(
+            const results = await Promise.allSettled(
               batchMessages.map((msg) =>
                 qstash.publishJSON({
                   url: msg.destination,
@@ -649,19 +659,38 @@ async function createBatchAndEmails(
                 }),
               ),
             );
+            results.forEach((result, idx) => {
+              if (result.status === 'fulfilled') {
+                queued.add(chunkIds[idx].id);
+              } else {
+                console.error(
+                  `❌ Batch ${batchIdForQueue}: QStash queuing error:`,
+                  result.reason,
+                );
+              }
+            });
           }
         }
 
         console.log(
-          `✅ Batch ${batchIdForQueue}: All ${totalEmails} emails queued to QStash (spread over ~${estimatedDuration}s)`,
+          `✅ Batch ${batchIdForQueue}: ${queued.size}/${totalEmails} emails queued to QStash (spread over ~${estimatedDuration}s)`,
         );
       } catch (error) {
         console.error(
           `❌ Batch ${batchIdForQueue}: QStash queuing error:`,
           error,
         );
+      } finally {
+        // Anything not confirmed as queued will never be sent
+        await failUnqueuedEmails(
+          batchIdForQueue,
+          emailIdsForQueue
+            .map((record) => record.id)
+            .filter((id) => !queued.has(id)),
+          'Could not queue email for delivery',
+        );
       }
-    })();
+    });
 
     // Return immediately without waiting for queuing
     return {
@@ -775,20 +804,8 @@ async function createBatchAndEmails(
     `📧 [DEV MODE] Batch ${batch.id}: ${successCount} sent, ${failCount} failed`,
   );
 
-  // Update batch completed/failed counts
-  await db
-    .update(batches)
-    .set({
-      completed: successCount,
-      failed: failCount,
-      status:
-        failCount === 0
-          ? 'completed'
-          : failCount === emailRecords.length
-            ? 'failed'
-            : 'partial',
-    })
-    .where(eq(batches.id, batch.id));
+  // Update batch counters and status from the emails' statuses
+  await syncBatchCounts(batch.id);
 
   // Notify admin via Discord
   await notifyCampaignComplete(batch.id, {

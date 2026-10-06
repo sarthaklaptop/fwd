@@ -1,61 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs';
-import { SendEmailCommand } from '@aws-sdk/client-ses';
-import { ses } from '@/lib/ses';
 import { resolveSender } from '@/lib/sender';
 import { db } from '@/db';
-import { emails, batches } from '@/db/schema';
-import { eq, sql } from 'drizzle-orm';
-import {
-  injectOpenTracking,
-  injectUnsubscribeLink,
-} from '@/lib/tracking';
+import { emails } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { syncBatchCounts } from '@/lib/batch-counts';
+import { classifySendError } from '@/lib/send-errors';
+import { isFinalQStashAttempt } from '@/lib/qstash-config';
+import { deliverEmail } from '@/lib/deliver-email';
 import { logError } from '@/lib/sentry';
 
-/**
- * Atomically increment batch counter - no race condition possible.
- */
-async function incrementBatchCounter(
-  batchId: string,
-  success: boolean
+const SENT_STATUSES = new Set(['completed', 'bounced', 'complained']);
+
+async function markFailed(
+  emailId: string,
+  batchId: string | null | undefined,
+  errorMessage: string,
 ) {
-  // Atomic increment - database locks row for microseconds
-  const result = await db.execute(sql`
-    UPDATE batches 
-    SET 
-      completed = completed + ${success ? 1 : 0},
-      failed = failed + ${success ? 0 : 1}
-    WHERE id = ${batchId}
-    RETURNING queued, completed, failed
-  `);
+  await db
+    .update(emails)
+    .set({ status: 'failed', errorMessage, updatedAt: new Date() })
+    .where(eq(emails.id, emailId));
+  console.log(`📝 Updated email ${emailId} status to 'failed'`);
+  if (batchId) await syncBatch(batchId);
+}
 
-  const updated = (
-    result as unknown as {
-      queued: number;
-      completed: number;
-      failed: number;
-    }[]
-  )?.[0];
-
-  // Check if all emails are processed
-  if (
-    updated &&
-    updated.completed + updated.failed >= updated.queued
-  ) {
-    const status =
-      updated.failed === 0
-        ? 'completed'
-        : updated.completed === 0
-        ? 'failed'
-        : 'partial';
-
-    await db
-      .update(batches)
-      .set({ status })
-      .where(eq(batches.id, batchId));
-
+async function syncBatch(batchId: string) {
+  const result = await syncBatchCounts(batchId);
+  if (result?.justFinished) {
     console.log(
-      `Batch ${batchId} completed with status: ${status}`
+      `Batch ${batchId} completed with status: ${result.status}`
     );
   }
 }
@@ -73,41 +47,56 @@ async function handler(req: NextRequest) {
     replyTo,
   } = body;
 
-  // Get the email record to find batch ID and userId (fallback)
+  // Malformed job: nothing to send or record, so don't let QStash retry it
+  if (typeof emailId !== 'string' || !emailId) {
+    console.error('Email job without emailId, dropping:', {
+      to,
+      subject,
+    });
+    return NextResponse.json({
+      success: false,
+      error: 'Missing emailId',
+    });
+  }
+
   const emailRecord = await db.query.emails.findFirst({
     where: eq(emails.id, emailId),
-    columns: { batchId: true, userId: true },
+    columns: { batchId: true, userId: true, status: true },
   });
 
-  const effectiveUserId = userId || emailRecord?.userId;
+  if (!emailRecord) {
+    console.error(`Email ${emailId} not found, dropping job`);
+    return NextResponse.json({
+      success: false,
+      error: 'Email not found',
+    });
+  }
+
+  // QStash delivers at least once: never send the same email twice
+  if (SENT_STATUSES.has(emailRecord.status)) {
+    console.log(
+      `Email ${emailId} already ${emailRecord.status}, skipping duplicate delivery`
+    );
+    return NextResponse.json({ success: true, duplicate: true });
+  }
+
+  const effectiveUserId = userId || emailRecord.userId;
 
   // Re-check the sender against the owner's verified domains. This also
   // covers messages queued before sender validation existed on every route.
   const fromValidation = await resolveSender(
     from,
-    emailRecord?.userId ?? userId,
+    emailRecord.userId ?? userId,
   );
   if (!fromValidation.valid) {
     console.error(
       `Email ${emailId} rejected: ${fromValidation.error}`
     );
-    if (emailId) {
-      await db
-        .update(emails)
-        .set({
-          status: 'failed',
-          errorMessage: fromValidation.error,
-          updatedAt: new Date(),
-        })
-        .where(eq(emails.id, emailId));
-
-      if (emailRecord?.batchId) {
-        await incrementBatchCounter(
-          emailRecord.batchId,
-          false
-        );
-      }
-    }
+    await markFailed(
+      emailId,
+      emailRecord.batchId,
+      fromValidation.error
+    );
     // Not retryable: return 200 so QStash doesn't resend
     return NextResponse.json({
       success: false,
@@ -120,127 +109,92 @@ async function handler(req: NextRequest) {
     `📧 Processing email ${emailId} to: ${to} from: ${fromEmail}`
   );
 
+  await db
+    .update(emails)
+    .set({ status: 'processing', updatedAt: new Date() })
+    .where(eq(emails.id, emailId));
+
   try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'http://localhost:3000';
-
-    // Process HTML: add tracking pixel and unsubscribe link
-    let processedHtml = html;
-    if (processedHtml) {
-      // Inject open tracking pixel
-      processedHtml = injectOpenTracking(
-        processedHtml,
-        emailId,
-        baseUrl
-      );
-
-      // Inject unsubscribe link footer (only if we have userId)
-      if (effectiveUserId) {
-        processedHtml = injectUnsubscribeLink(
-          processedHtml,
-          emailId,
-          to,
-          effectiveUserId,
-          baseUrl
-        );
-      }
-    }
-
-    // Build List-Unsubscribe header (TODO: implement with SendRawEmailCommand for full header support)
-    // const listUnsubscribeHeader = effectiveUserId
-    //   ? getListUnsubscribeHeader(emailId, to, effectiveUserId, baseUrl)
-    //   : undefined;
-
-    // Send via AWS SES with configuration set for bounce/complaint tracking
-    const command = new SendEmailCommand({
-      Source: fromEmail,
-      Destination: {
-        ToAddresses: Array.isArray(to) ? to : [to],
-      },
-      ReplyToAddresses: replyTo ? [replyTo] : undefined,
-      Message: {
-        Subject: { Data: subject },
-        Body: {
-          Html: processedHtml
-            ? { Data: processedHtml }
-            : undefined,
-          Text: text ? { Data: text } : undefined,
-        },
-      },
-      ConfigurationSetName: 'fwd-notifications',
+    const response = await deliverEmail({
+      emailId,
+      to,
+      subject,
+      html,
+      text,
+      fromEmail,
+      replyTo,
+      userId: effectiveUserId,
     });
-
-    const response = await ses.send(command);
+    // TODO: List-Unsubscribe header needs SendRawEmailCommand
     console.log(
-      `✅ Email sent! SES ID: ${response.MessageId}`
+      `✅ Email sent! SES ID: ${response.messageId}`
     );
 
-    // Update database: status = completed
-    if (emailId) {
-      await db
-        .update(emails)
-        .set({
-          status: 'completed',
-          sesMessageId: response.MessageId,
-          errorMessage: null, // Clears any previous error from failed attempts
-          updatedAt: new Date(),
-        })
-        .where(eq(emails.id, emailId));
-      console.log(
-        `📝 Updated email ${emailId} status to 'completed'`
-      );
+    await db
+      .update(emails)
+      .set({
+        status: 'completed',
+        sesMessageId: response.messageId,
+        errorMessage: null, // Clears any previous error from failed attempts
+        updatedAt: new Date(),
+      })
+      .where(eq(emails.id, emailId));
+    console.log(
+      `📝 Updated email ${emailId} status to 'completed'`
+    );
 
-      // Update batch counter atomically
-      if (emailRecord?.batchId) {
-        await incrementBatchCounter(
-          emailRecord.batchId,
-          true
-        );
-      }
+    if (emailRecord.batchId) {
+      await syncBatch(emailRecord.batchId);
     }
 
     return NextResponse.json({
       success: true,
-      messageId: response.MessageId,
+      messageId: response.messageId,
     });
   } catch (error: unknown) {
     const err = error as Error;
-    console.error(`Email failed: ${err.message}`);
+    const kind = classifySendError(error);
+    const finalAttempt =
+      kind === 'permanent' || isFinalQStashAttempt(req.headers);
+    console.error(
+      `Email failed (${kind}${finalAttempt ? ', final' : ', will retry'}): ${err.message}`
+    );
 
     // Log to Sentry with context
     logError(err, {
       source: 'qstash',
       emailId,
-      batchId: emailRecord?.batchId,
-      userId: effectiveUserId,
-      extra: { to, subject, from: fromEmail },
+      batchId: emailRecord.batchId ?? undefined,
+      userId: effectiveUserId ?? undefined,
+      extra: { to, subject, from: fromEmail, kind, finalAttempt },
     });
 
-    // Update database: status = failed
-    if (emailId) {
+    if (!finalAttempt) {
+      // Keep it in flight so the batch isn't finalized while QStash retries
       await db
         .update(emails)
         .set({
-          status: 'failed',
-          errorMessage: err.message,
+          errorMessage: `Attempt failed, retrying: ${err.message}`,
           updatedAt: new Date(),
         })
         .where(eq(emails.id, emailId));
-      console.log(
-        `📝 Updated email ${emailId} status to 'failed'`
+      return NextResponse.json(
+        { error: 'Email delivery failed, will retry' },
+        { status: 500 }
       );
-
-      // Update batch counter atomically
-      if (emailRecord?.batchId) {
-        await incrementBatchCounter(
-          emailRecord.batchId,
-          false
-        );
-      }
     }
 
-    // Return 500 so QStash knows to retry
+    await markFailed(emailId, emailRecord.batchId, err.message);
+
+    if (kind === 'permanent') {
+      // Retrying cannot succeed: return 200 so QStash stops
+      return NextResponse.json({
+        success: false,
+        error: err.message,
+      });
+    }
+
+    // Transient error on the last attempt: 500 sends it to the QStash DLQ
     return NextResponse.json(
       { error: 'Email delivery failed' },
       { status: 500 }
