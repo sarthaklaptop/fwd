@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/db';
-import { domains, emails } from '@/db/schema';
+import {
+  domains,
+  emails,
+  suppressionList,
+  users,
+} from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { ApiResponse } from '@/lib/api-response';
 import { ApiError } from '@/lib/api-error';
@@ -31,8 +36,39 @@ export async function POST(req: NextRequest) {
     ).send();
   }
 
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (typeof to !== 'string' || !emailRegex.test(to)) {
+    return new ApiError(
+      400,
+      'Invalid email address'
+    ).send();
+  }
+
+  const recipient = to.toLowerCase();
+
+  // Independent checks run in parallel to save database round trips
+  const [account, limitCheck, suppressed] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { isDeleted: true },
+    }),
+    checkEmailLimit(user.id),
+    db.query.suppressionList.findFirst({
+      where: eq(suppressionList.email, recipient),
+      columns: { reason: true },
+    }),
+  ]);
+
+  // A deleted account can still hold a valid session, so check the flag
+  if (!account || account.isDeleted) {
+    return new ApiError(
+      403,
+      'This account has been deleted',
+    ).send();
+  }
+
   // Test emails count toward the monthly plan limit like any other send
-  const limitCheck = await checkEmailLimit(user.id);
   if (!limitCheck.allowed) {
     return new ApiError(
       429,
@@ -40,12 +76,12 @@ export async function POST(req: NextRequest) {
     ).send();
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(to)) {
+  // Same rule as /api/send: never email bounced, complained or
+  // unsubscribed addresses
+  if (suppressed) {
     return new ApiError(
       400,
-      'Invalid email address'
+      `Email to ${recipient} blocked: recipient is on suppression list (${suppressed.reason})`,
     ).send();
   }
 
