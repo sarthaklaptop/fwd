@@ -2,6 +2,8 @@ import 'server-only';
 import { db } from '@/db';
 import { domains } from '@/db/schema';
 import { and, eq, ne } from 'drizzle-orm';
+import { randomBytes } from 'crypto';
+import { Resolver } from 'dns/promises';
 import { DEFAULT_FROM_EMAIL } from '@/lib/sender';
 
 // Domain part of "a@b.com" or "Name <a@b.com>"
@@ -65,4 +67,41 @@ export async function countOtherDomainRows(
     .from(domains)
     .where(and(eq(domains.domain, domain), ne(domains.id, excludeRowId)));
   return rows.length;
+}
+
+const OWNERSHIP_PREFIX = '_fwd-verify';
+const OWNERSHIP_VALUE_PREFIX = 'fwd-verify=';
+
+export function generateVerificationToken(): string {
+  return randomBytes(16).toString('hex');
+}
+
+/** TXT record a user must publish to prove they control the domain. */
+export function ownershipRecord(domain: string, token: string) {
+  return {
+    type: 'TXT',
+    name: `${OWNERSHIP_PREFIX}.${domain}`,
+    value: `${OWNERSHIP_VALUE_PREFIX}${token}`,
+  };
+}
+
+/**
+ * True if the user's own token is published at _fwd-verify.<domain>.
+ * Long TXT values can be split into several strings, so they are joined.
+ * DNS errors (no record yet, timeout) count as "not found".
+ */
+export async function hasOwnershipRecord(
+  domain: string,
+  token: string,
+): Promise<boolean> {
+  const expected = `${OWNERSHIP_VALUE_PREFIX}${token}`;
+  const resolver = new Resolver({ timeout: 3000, tries: 2 });
+  try {
+    const records = await resolver.resolveTxt(
+      `${OWNERSHIP_PREFIX}.${domain}`,
+    );
+    return records.some((chunks) => chunks.join('').trim() === expected);
+  } catch {
+    return false;
+  }
 }

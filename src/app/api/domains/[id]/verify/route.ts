@@ -8,7 +8,12 @@ import {
   GetIdentityVerificationAttributesCommand,
   GetIdentityDkimAttributesCommand,
 } from '@aws-sdk/client-ses';
-import { isVerifiedByAnotherUser } from '@/lib/domain-ownership';
+import {
+  isVerifiedByAnotherUser,
+  generateVerificationToken,
+  hasOwnershipRecord,
+  ownershipRecord,
+} from '@/lib/domain-ownership';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,6 +51,20 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Rows created before ownership tokens existed get one on first check
+    let verificationToken = domain.verificationToken;
+    if (!verificationToken) {
+      verificationToken = generateVerificationToken();
+      await db
+        .update(domains)
+        .set({ verificationToken, updatedAt: new Date() })
+        .where(eq(domains.id, id));
+    }
+    const ownership = ownershipRecord(
+      domain.domain,
+      verificationToken
+    );
 
     // Check domain verification status in SES
     const verificationResponse = await ses.send(
@@ -98,6 +117,20 @@ export async function POST(
       newStatus = 'failed';
     }
 
+    // SES verification is account-wide: it doesn't say WHICH user published
+    // the DNS records. Require this user's own token as proof of ownership.
+    let ownershipVerified = false;
+    if (verified) {
+      ownershipVerified = await hasOwnershipRecord(
+        domain.domain,
+        verificationToken
+      );
+      if (!ownershipVerified) {
+        verified = false;
+        newStatus = 'verifying';
+      }
+    }
+
     // Only one account may own a verified domain. SES reports Success for
     // the whole account, so check nobody else already holds it.
     if (
@@ -121,16 +154,32 @@ export async function POST(
       );
     }
 
-    // Update database
-    await db
-      .update(domains)
-      .set({
-        status: newStatus,
-        verifiedAt: verified ? new Date() : null,
-        lastCheckAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(domains.id, id));
+    // Update database. The unique index on verified domains turns a
+    // concurrent second owner into a constraint error.
+    try {
+      await db
+        .update(domains)
+        .set({
+          status: newStatus,
+          verifiedAt: verified ? new Date() : null,
+          lastCheckAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(domains.id, id));
+    } catch (updateError) {
+      const code = (updateError as { cause?: { code?: string } })?.cause
+        ?.code;
+      if (code === '23505') {
+        return NextResponse.json(
+          {
+            error:
+              'This domain is already verified by another account. If you own it, contact support.',
+          },
+          { status: 409 }
+        );
+      }
+      throw updateError;
+    }
 
     return NextResponse.json({
       success: true,
@@ -139,9 +188,16 @@ export async function POST(
       checks: {
         domain: verificationStatus || 'Unknown',
         dkim: dkimStatus || 'Unknown',
+        ownership: ownershipVerified ? 'Success' : 'Pending',
       },
+      ownershipRecord: ownership,
+      verificationToken,
       message: verified
         ? 'Domain verified successfully! You can now send emails from this domain.'
+        : verificationStatus === 'Success' &&
+          dkimStatus === 'Success' &&
+          !ownershipVerified
+        ? `DKIM is verified, but the ownership TXT record was not found yet. Add TXT ${ownership.name} with value ${ownership.value}, then verify again.`
         : newStatus === 'verifying'
         ? 'DNS records detected but still propagating. Please wait a few minutes and try again.'
         : 'DNS records not found. Please add the required DNS records and try again.',

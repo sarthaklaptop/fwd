@@ -12,6 +12,8 @@ import { checkDomainLimit } from '@/lib/plan-limits';
 import {
   isReservedDomain,
   isVerifiedByAnotherUser,
+  generateVerificationToken,
+  ownershipRecord,
 } from '@/lib/domain-ownership';
 
 // Get user's domains
@@ -175,11 +177,16 @@ export async function POST(req: Request) {
         domain: cleanDomain,
         status: 'pending',
         dkimTokens: JSON.stringify(dkimTokens),
+        verificationToken: generateVerificationToken(),
       })
       .returning();
 
     // Generate DNS records for user
     const dnsRecords = {
+      ownership: ownershipRecord(
+        cleanDomain,
+        newDomain.verificationToken!,
+      ),
       dkim: dkimTokens.map((token) => ({
         type: 'CNAME',
         name: `${token}._domainkey.${cleanDomain}`,

@@ -966,6 +966,11 @@ function DomainsContent() {
     "status": "pending",
     "dkimTokens": ["token1", "token2", "token3"],
     "dnsRecords": {
+      "ownership": {
+        "type": "TXT",
+        "name": "_fwd-verify.yourdomain.com",
+        "value": "fwd-verify=<your-unique-token>"
+      },
       "dkim": [
         {
           "type": "CNAME",
@@ -997,6 +1002,17 @@ function DomainsContent() {
       <Paragraph>
         After adding your domain, configure these records
         with your DNS provider:
+      </Paragraph>
+
+      <SubHeading>Ownership Record (TXT, required)</SubHeading>
+      <Paragraph>
+        Add a TXT record named{' '}
+        <InlineCode>_fwd-verify.yourdomain.com</InlineCode> with
+        the value shown in your dashboard (
+        <InlineCode>fwd-verify=…</InlineCode>). The token is
+        unique to your account and proves the domain belongs to
+        you; the domain is only verified once this record and
+        the DKIM records are found.
       </Paragraph>
 
       <SubHeading>DKIM Records (3× CNAME)</SubHeading>

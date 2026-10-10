@@ -61,7 +61,13 @@ export default function DomainsSection({
         setDomains(
           domains.map((d) =>
             d.id === id
-              ? { ...d, status: response.status }
+              ? {
+                  ...d,
+                  status: response.status,
+                  verificationToken:
+                    response.verificationToken ??
+                    d.verificationToken,
+                }
               : d
           )
         );

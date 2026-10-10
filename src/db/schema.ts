@@ -10,6 +10,7 @@ import {
   integer,
   boolean,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // Email status enum
 export const emailStatusEnum = pgEnum('email_status', [
@@ -309,6 +310,9 @@ export const domains = pgTable(
       .notNull(),
     // DKIM tokens from SES (stored as JSON array)
     dkimTokens: text('dkim_tokens'), // JSON array of 3 tokens
+    // Per-user ownership proof, published as TXT _fwd-verify.<domain>.
+    // SES verification is account-wide, so this proves which user owns it.
+    verificationToken: varchar('verification_token', { length: 64 }),
     // Verification tracking
     verifiedAt: timestamp('verified_at'),
     lastCheckAt: timestamp('last_check_at'),
@@ -325,6 +329,10 @@ export const domains = pgTable(
       table.userId,
       table.domain,
     ),
+    // At most one verified owner per domain, even under concurrent verifies
+    uniqueIndex('domains_verified_domain_idx')
+      .on(sql`lower(${table.domain})`)
+      .where(sql`status = 'verified'`),
   ],
 );
 

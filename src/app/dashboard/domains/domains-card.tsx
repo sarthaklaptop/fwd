@@ -225,6 +225,69 @@ export function DomainCard({
       {/* DNS Records */}
       {expanded && (
         <div className="border-t border-border p-4 bg-muted/30 space-y-4">
+          {domain.verificationToken ? (
+            <div>
+              <h4 className="text-sm font-medium text-foreground mb-2">
+                Ownership Record (Required)
+              </h4>
+              <div className="bg-background border border-border rounded-lg p-4">
+                <span className="text-sm font-medium text-yellow-500 mb-3 block">
+                  TXT Record
+                </span>
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: 'Name:',
+                      value: `_fwd-verify.${domain.domain}`,
+                      key: 'ownership-name',
+                    },
+                    {
+                      label: 'Value:',
+                      value: `fwd-verify=${domain.verificationToken}`,
+                      key: 'ownership-value',
+                    },
+                  ].map((field) => (
+                    <div
+                      key={field.key}
+                      className="flex items-start gap-3"
+                    >
+                      <span className="text-sm text-muted-foreground w-14 pt-1 shrink-0">
+                        {field.label}
+                      </span>
+                      <code className="flex-1 text-sm font-mono text-foreground bg-muted px-2 py-1 rounded select-all break-all">
+                        {field.value}
+                      </code>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(field.value, field.key)
+                        }
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1.5 hover:bg-muted rounded"
+                        title="Copy"
+                      >
+                        {copiedRecord === field.key ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Proves this domain belongs to your account. Your
+                token is unique to you.
+              </p>
+            </div>
+          ) : (
+            domain.status !== 'verified' && (
+              <p className="text-sm text-muted-foreground">
+                Click &quot;Verify DNS&quot; once to generate your
+                ownership record.
+              </p>
+            )
+          )}
+
           <div>
             <h4 className="text-sm font-medium text-foreground mb-2">
               DKIM Records (Add all 3)
