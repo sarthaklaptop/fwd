@@ -193,6 +193,13 @@ export async function POST(req: Request) {
     });
   }
 
+  if (validRecipients.length === 0) {
+    return new ApiError(
+      400,
+      'No valid email addresses in the recipient list',
+    ).send();
+  }
+
   // Filter suppressed
   const suppressedEmails = await db
     .select({ email: suppressionList.email })
@@ -213,7 +220,7 @@ export async function POST(req: Request) {
   if (finalRecipients.length === 0) {
     return new ApiError(
       400,
-      'No valid recipients after filtering',
+      'All recipients are on the suppression list (bounced, complained or unsubscribed)',
     ).send();
   }
 

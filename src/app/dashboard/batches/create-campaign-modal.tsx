@@ -30,6 +30,10 @@ import {
   parseRecipients,
   getMissingVariablesCount,
 } from '@/lib/campaign-utils';
+import {
+  checkFromParts,
+  plainDisplayName,
+} from '@/lib/sender-rules';
 
 function toastCampaignSent(recipientCount: number) {
   toast(
@@ -176,7 +180,8 @@ export function CreateCampaignModal({
         const lastFromPrefix =
           localStorage.getItem('fwd_last_from_prefix') ||
           '';
-        setFromName(lastFromName);
+        // Older versions saved the name with its header quotes
+        setFromName(plainDisplayName(lastFromName));
         setFromPrefix(lastFromPrefix);
       }
     }
@@ -230,7 +235,8 @@ export function CreateCampaignModal({
         const nameMatch =
           dupFrom.fromEmail.match(/^(.+?)\s*</);
         if (nameMatch) {
-          setFromName(nameMatch[1].trim());
+          // Stored as `"Name" <...>`; edit the name without the quotes
+          setFromName(plainDisplayName(nameMatch[1]));
         }
 
         setFromPrefix(prefix);
@@ -362,6 +368,12 @@ export function CreateCampaignModal({
     setTemplateVariables(allVars);
   }
 
+  // Checked as the user types, with the same rules the server applies
+  const fromDisplayName = plainDisplayName(fromName);
+  const fromError = fromPrefix.trim()
+    ? checkFromParts(fromDisplayName, fromPrefix.trim())
+    : null;
+
   async function handleSend() {
     if (!selectedTemplate) {
       setError('Please select a template');
@@ -375,6 +387,11 @@ export function CreateCampaignModal({
 
     if (!fromPrefix.trim()) {
       setError('Please enter a from email address');
+      return;
+    }
+
+    if (fromError) {
+      setError(fromError);
       return;
     }
 
@@ -401,8 +418,8 @@ export function CreateCampaignModal({
     const fromEmail = `${fromPrefix.trim()}@${
       selectedDomain.domain
     }`;
-    const from = fromName.trim()
-      ? `${fromName.trim()} <${fromEmail}>`
+    const from = fromDisplayName
+      ? `${fromDisplayName} <${fromEmail}>`
       : fromEmail;
 
     // Build scheduled time if scheduling
@@ -437,7 +454,7 @@ export function CreateCampaignModal({
         // Save last used values
         localStorage.setItem(
           'fwd_last_from_name',
-          fromName,
+          fromDisplayName,
         );
         localStorage.setItem(
           'fwd_last_from_prefix',
@@ -691,14 +708,20 @@ export function CreateCampaignModal({
                               the Domains section first
                             </p>
                           )}
-                          {selectedDomain && fromPrefix && (
-                            <p className="text-xs text-green-500 mt-1">
-                              ✓ Will send from:{' '}
-                              {fromName
-                                ? `${fromName} <${fromPrefix}@${selectedDomain.domain}>`
-                                : `${fromPrefix}@${selectedDomain.domain}`}
-                            </p>
-                          )}
+                          {selectedDomain &&
+                            fromPrefix &&
+                            (fromError ? (
+                              <p className="text-xs text-red-500 mt-1">
+                                ✗ {fromError}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-green-500 mt-1">
+                                ✓ Will send from:{' '}
+                                {fromDisplayName
+                                  ? `${fromDisplayName} <${fromPrefix}@${selectedDomain.domain}>`
+                                  : `${fromPrefix}@${selectedDomain.domain}`}
+                              </p>
+                            ))}
                         </div>
                       </div>
                     </div>
@@ -1087,6 +1110,10 @@ export function CreateCampaignModal({
                   onClick={() => {
                     if (step === 1 && !selectedTemplate) {
                       setError('Please select a template');
+                      return;
+                    }
+                    if (step === 1 && fromError) {
+                      setError(fromError);
                       return;
                     }
                     if (

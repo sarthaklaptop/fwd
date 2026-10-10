@@ -2,6 +2,12 @@ import 'server-only';
 import { db } from '@/db';
 import { domains } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
+import {
+  MAX_DISPLAY_NAME_LENGTH,
+  LOCAL_PART_RE,
+  UNSAFE_DISPLAY_NAME_RE,
+  ENCODED_WORD_RE,
+} from '@/lib/sender-rules';
 
 // Default sender email for free users
 export const DEFAULT_FROM_EMAIL =
@@ -11,16 +17,9 @@ export const DEFAULT_FROM_EMAIL =
 const DEFAULT_FROM_DOMAIN = DEFAULT_FROM_EMAIL.split('@')[1].toLowerCase();
 
 const MAX_FROM_LENGTH = 320;
-const MAX_DISPLAY_NAME_LENGTH = 100;
 
-// Unquoted RFC 5322 dot-atom local part, and a plain DNS hostname.
-// Quoted local parts, comments and IP-literal domains are rejected on purpose.
-const LOCAL_PART_RE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+// Plain DNS hostname. Comments and IP-literal domains are rejected on purpose.
 const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
-
-// Characters that carry meaning in an address header. A display name holding
-// any of them could make SES parse a different mailbox than the one we checked.
-const UNSAFE_DISPLAY_NAME_RE = /[<>()"\\@,;:[\]\x00-\x1f\x7f]/;
 
 const CONTROL_CHARS_RE = /[\x00-\x1f\x7f]/;
 
@@ -29,8 +28,6 @@ export interface ParsedSender {
   address: string;
   domain: string;
 }
-
-const ENCODED_WORD_RE = /^=\?UTF-8\?B\?([A-Za-z0-9+/]+={0,2})\?=$/i;
 
 /**
  * Undo the encoding formatSender applies, so stored Source values validate
