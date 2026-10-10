@@ -27,6 +27,18 @@ export function BatchDetailModal({
 }: BatchDetailModalProps) {
   const displayBatch = batch || pendingBatch;
 
+  // `queued` is how many emails were accepted for sending when the batch
+  // was created; it never goes down, so derive what the user cares about
+  const skipped = batch
+    ? Math.max(0, batch.total - batch.queued)
+    : 0;
+  const invalid = batch
+    ? Math.max(0, skipped - batch.suppressed - batch.duplicates)
+    : 0;
+  const inProgress = batch
+    ? Math.max(0, batch.queued - batch.completed - batch.failed)
+    : 0;
+
   useModalKeyboard({ onClose, isOpen: true });
 
   return (
@@ -45,7 +57,8 @@ export function BatchDetailModal({
                 <p className="text-muted-foreground text-sm">
                   {displayBatch.templateName ||
                     'Direct Send'}{' '}
-                  • {displayBatch.queued} emails
+                  • {displayBatch.queued} email
+                  {displayBatch.queued === 1 ? '' : 's'} sent
                 </p>
               ) : (
                 <div className="h-4 bg-muted/50 rounded w-32 animate-pulse"></div>
@@ -65,15 +78,28 @@ export function BatchDetailModal({
             <ModalSkeleton />
           ) : (
             <>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              <div
+                className={`grid grid-cols-3 gap-3 ${
+                  inProgress > 0 ? 'sm:grid-cols-7' : 'sm:grid-cols-6'
+                }`}
+              >
                 <StatCard
                   label="Total"
                   value={batch.total}
                 />
+                {/* Only while emails are still waiting to be sent */}
+                {inProgress > 0 && (
+                  <StatCard
+                    label="In queue"
+                    value={inProgress}
+                    color="blue"
+                    pulse
+                  />
+                )}
                 <StatCard
-                  label="Queued"
-                  value={batch.queued}
-                  color="blue"
+                  label="Skipped"
+                  value={skipped}
+                  color="yellow"
                 />
                 <StatCard
                   label="Completed"
@@ -172,9 +198,8 @@ export function BatchDetailModal({
                 </div>
               )}
 
-              {(batch.suppressed > 0 ||
-                batch.duplicates > 0) && (
-                <div className="flex gap-4 text-sm">
+              {skipped > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                   {batch.suppressed > 0 && (
                     <span className="text-yellow-500 dark:text-yellow-400">
                       {batch.suppressed} suppressed
@@ -183,6 +208,11 @@ export function BatchDetailModal({
                   {batch.duplicates > 0 && (
                     <span className="text-orange-500 dark:text-orange-400">
                       {batch.duplicates} duplicates
+                    </span>
+                  )}
+                  {invalid > 0 && (
+                    <span className="text-muted-foreground">
+                      {invalid} invalid
                     </span>
                   )}
                 </div>
@@ -314,18 +344,27 @@ function ModalSkeleton() {
   );
 }
 
-function StatCard({ label, value, color }: StatCardProps) {
+function StatCard({
+  label,
+  value,
+  color,
+  pulse,
+}: StatCardProps) {
   const textColors: Record<string, string> = {
     blue: 'text-blue-500 dark:text-blue-400',
     green: 'text-green-500 dark:text-green-400',
     red: 'text-red-500 dark:text-red-400',
     purple: 'text-purple-500 dark:text-purple-400',
     orange: 'text-orange-500 dark:text-orange-400',
+    yellow: 'text-yellow-500 dark:text-yellow-400',
   };
 
   return (
     <div className="bg-transparent rounded-lg p-3 border border-border">
-      <p className="text-muted-foreground text-xs mb-1">
+      <p className="text-muted-foreground text-xs mb-1 flex items-center gap-1.5">
+        {pulse && (
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+        )}
         {label}
       </p>
       <p

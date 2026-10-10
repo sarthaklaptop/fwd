@@ -14,7 +14,10 @@ import {
   RotateCcw,
   Clock,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/use-modal-keyboard';
 import { useUserEmail } from '@/hooks/use-user-email';
@@ -69,6 +72,21 @@ function toastCampaignScheduled(recipientCount: number) {
   );
 }
 
+const STEPS = ['Template', 'Recipients', 'Review'];
+
+// Steps slide in the direction of travel: forward from the right, back from the left
+const stepMotion = {
+  variants: {
+    enter: (direction: number) => ({ opacity: 0, x: 24 * direction }),
+    center: { opacity: 1, x: 0 },
+    exit: (direction: number) => ({ opacity: 0, x: -24 * direction }),
+  },
+  initial: 'enter',
+  animate: 'center',
+  exit: 'exit',
+  transition: { duration: 0.18, ease: 'easeOut' },
+} as const;
+
 export function CreateCampaignModal({
   isOpen,
   duplicateFrom,
@@ -76,6 +94,13 @@ export function CreateCampaignModal({
   onSuccess,
 }: CreateCampaignModalProps) {
   const [step, setStep] = useState(1);
+  // 1 when moving forward, -1 when going back
+  const [direction, setDirection] = useState(1);
+
+  function goToStep(next: number) {
+    setDirection(next > step ? 1 : -1);
+    setStep(next);
+  }
   const [templates, setTemplates] = useState<Template[]>(
     [],
   );
@@ -165,6 +190,7 @@ export function CreateCampaignModal({
       fetchTemplates();
       fetchDomains();
       setStep(1);
+      setDirection(1);
       setSelectedTemplate(null);
       setRecipients('');
       setError(null);
@@ -483,42 +509,106 @@ export function CreateCampaignModal({
     setSending(false);
   }
 
-  if (!isOpen) return null;
+  const isMac =
+    typeof navigator !== 'undefined' &&
+    /Mac|iPhone|iPad/.test(navigator.userAgent);
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
-        <div className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col">
+      <AnimatePresence>
+        {isOpen && (
+      <motion.div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-campaign-title"
+          className="bg-card border border-border rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: 8 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Send className="w-5 h-5 text-primary" />
+          <div className="p-4 border-b border-border space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Send className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3
+                    id="create-campaign-title"
+                    className="text-lg font-semibold text-foreground"
+                  >
+                    Create Campaign
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Step {step} of {STEPS.length} ·{' '}
+                    {STEPS[step - 1]}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  Create Campaign
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  Step {step} of 3
-                </p>
-              </div>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            {/* Step progress */}
+            <div className="flex gap-2">
+              {STEPS.map((label, i) => (
+                <div key={label} className="flex-1 space-y-1.5">
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <motion.div
+                      className="h-full bg-primary rounded-full"
+                      initial={false}
+                      animate={{
+                        width: i < step ? '100%' : '0%',
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        ease: 'easeOut',
+                      }}
+                    />
+                  </div>
+                  <p
+                    className={`text-xs transition-colors ${
+                      i < step
+                        ? 'text-foreground font-medium'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto overflow-x-visible max-h-[calc(85vh-140px)] flex-1">
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
-                {error}
-              </div>
-            )}
+          <div className="p-6 overflow-y-auto overflow-x-hidden min-h-0 flex-1">
+            <AnimatePresence initial={false}>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Loading overlay for duplicate pre-fill */}
             {duplicatePrefilling && (
@@ -531,10 +621,10 @@ export function CreateCampaignModal({
             )}
 
             {!duplicatePrefilling && (
-              <>
+              <AnimatePresence mode="wait" initial={false} custom={direction}>
                 {/* Step 1: Select Template */}
                 {step === 1 && (
-                  <div className="space-y-4">
+                  <motion.div key="step1" className="space-y-4" custom={direction} {...stepMotion}>
                     <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       Select Template
@@ -725,12 +815,12 @@ export function CreateCampaignModal({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 2: Add Recipients */}
                 {step === 2 && (
-                  <div className="space-y-4">
+                  <motion.div key="step2" className="space-y-4" custom={direction} {...stepMotion}>
                     <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       Add Recipients
@@ -882,12 +972,12 @@ export function CreateCampaignModal({
                         recipient(s) missing variable values
                       </p>
                     )}
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Step 3: Preview & Send */}
                 {step === 3 && (
-                  <div className="space-y-4">
+                  <motion.div key="step3" className="space-y-4" custom={direction} {...stepMotion}>
                     <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                       <Eye className="w-4 h-4" />
                       Review Campaign
@@ -1060,24 +1150,28 @@ export function CreateCampaignModal({
                         Send Test Email
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </>
+              </AnimatePresence>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-4 border-t border-border bg-secondary/20">
+          <div className="flex items-center justify-between gap-3 p-4 border-t border-border bg-secondary/20">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() =>
-                  step > 1 && setStep(step - 1)
-                }
-                disabled={step === 1}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Back
-              </button>
+              {step > 1 && (
+                <button
+                  onClick={() => {
+                    setError(null);
+                    goToStep(step - 1);
+                  }}
+                  disabled={sending}
+                  className="inline-flex items-center gap-1.5 pl-2.5 pr-3.5 py-2 text-sm font-medium text-foreground border border-border rounded-lg hover:bg-muted active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </button>
+              )}
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
                   Esc
@@ -1087,7 +1181,7 @@ export function CreateCampaignModal({
                   <>
                     {' · '}
                     <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
-                      ⌘
+                      {isMac ? '⌘' : 'Ctrl'}
                     </kbd>
                     <span className="mx-0.5">+</span>
                     <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono shadow-sm">
@@ -1101,7 +1195,7 @@ export function CreateCampaignModal({
             <div className="flex gap-2">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -1129,17 +1223,18 @@ export function CreateCampaignModal({
                       return;
                     }
                     setError(null);
-                    setStep(step + 1);
+                    goToStep(step + 1);
                   }}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+                  className="inline-flex items-center gap-1.5 pl-4 pr-3 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 active:scale-[0.97] transition-all"
                 >
                   Next
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={handleSend}
                   disabled={sending}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
                 >
                   {sending ? (
                     <>
@@ -1163,8 +1258,10 @@ export function CreateCampaignModal({
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Test Email Modal */}
       <TestEmailModal

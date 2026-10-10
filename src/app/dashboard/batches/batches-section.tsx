@@ -168,6 +168,10 @@ export default function BatchesSection() {
           emails: response.data.emails,
           linkStats: response.data.linkStats || null,
         });
+        // Keep the queue numbers live while the batch is still sending
+        if (response.data.batch.status === 'processing') {
+          refreshOpenBatch(batch.id);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch batch detail:', error);
@@ -178,6 +182,9 @@ export default function BatchesSection() {
 
   function closeModal() {
     openBatchIdRef.current = null;
+    if (retryRefreshTimer.current) {
+      clearTimeout(retryRefreshTimer.current);
+    }
     setSelectedBatch(null);
     setPendingBatchId(null);
   }
@@ -197,9 +204,10 @@ export default function BatchesSection() {
     setShowCreateModal(true);
   }
 
-  // After a retry the emails are sent in the background (QStash), so poll
-  // the open batch quietly until it is no longer in progress.
-  function refreshAfterRetry(batchId: string, attempt = 0) {
+  // Emails are sent in the background (QStash), so while the open batch is
+  // sending (just opened, or just retried) poll it quietly until it is done.
+  // Gives up after ~2 minutes; reopening the batch starts again.
+  function refreshOpenBatch(batchId: string, attempt = 0) {
     if (retryRefreshTimer.current) {
       clearTimeout(retryRefreshTimer.current);
     }
@@ -220,8 +228,8 @@ export default function BatchesSection() {
           const status = response.data.batch.status;
           const inProgress =
             status === 'processing' || status === 'scheduled';
-          if (inProgress && attempt < 9) {
-            refreshAfterRetry(batchId, attempt + 1);
+          if (inProgress && attempt < 39) {
+            refreshOpenBatch(batchId, attempt + 1);
             return;
           }
         }
@@ -248,7 +256,7 @@ export default function BatchesSection() {
       if (response.success) {
         toastBatchRetried(response.data?.retried);
         notifyUsageChanged();
-        refreshAfterRetry(batchId);
+        refreshOpenBatch(batchId);
       } else {
         toast.error(
           response.message || 'Failed to retry emails',
