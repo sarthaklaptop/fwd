@@ -67,6 +67,7 @@ export interface StatCardProps {
   label: string;
   value: number;
   color?: string;
+  pulse?: boolean;
 }
 
 export interface EmailStatusBadgeProps {
